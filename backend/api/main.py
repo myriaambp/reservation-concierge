@@ -7,12 +7,15 @@ from __future__ import annotations
 from dotenv import load_dotenv  # noqa: E402
 load_dotenv()  # noqa: E402
 
+import os
 import secrets
 from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path as _Path
 from pydantic import BaseModel
 
 from backend.agents.graph import chat_graph, tick_graph
@@ -35,6 +38,12 @@ app.add_middleware(
 # Sandboxed fake reservation site the agent books against during demos.
 from backend.api.fake_resy import router as fake_resy_router  # noqa: E402
 app.include_router(fake_resy_router)
+
+# Serve screenshots from the browser-booker so the deployed Streamlit can
+# render them via URL (containers don't share filesystems).
+_SHOT_DIR = _Path(__file__).resolve().parents[2] / "frontend" / "static"
+_SHOT_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(_SHOT_DIR)), name="static")
 
 
 # In-memory token store for HITL booking flow. Production: redis or short-TTL
@@ -252,6 +261,14 @@ def demo_auto_book(fixture_id: str, user_id: str = "demo-user") -> dict:
     result["restaurant_name"] = rest_name
     result["datetime"] = slot.datetime.isoformat()
     result["party_size"] = slot.party_size
+
+    # Promote screenshot paths to absolute URLs the deployed Streamlit can fetch.
+    api_base = os.getenv("PUBLIC_API_URL") or os.getenv("FAKE_RESY_BASE") or ""
+    if api_base and result.get("screenshots"):
+        result["screenshot_urls"] = [
+            f"{api_base.rstrip('/')}/{rel.lstrip('/')}"
+            for rel in result["screenshots"]
+        ]
 
     # On success, fire a confirmation notification + email.
     if result.get("ok") and result.get("confirmation_code"):

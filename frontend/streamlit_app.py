@@ -979,19 +979,28 @@ if DEMO_MODE:
                         with st.expander("Agent steps", expanded=False):
                             for step in r.get("steps", []):
                                 st.write(f"· {step}")
-                        # Show the screenshots
-                        st.markdown("##### Screenshots")
-                        shot_cols = st.columns(min(len(r.get("screenshots", [])), 4) or 1)
-                        repo_root = Path(__file__).resolve().parents[1]
-                        for j, rel in enumerate(r.get("screenshots", [])):
-                            p = repo_root / rel
-                            if p.exists():
-                                with shot_cols[j % len(shot_cols)]:
-                                    st.image(
-                                        str(p),
-                                        caption=p.stem,
-                                        use_container_width=True,
-                                    )
+                        # Show the screenshots — prefer absolute URLs (deployed
+                        # multi-container) and fall back to local paths.
+                        urls = r.get("screenshot_urls") or []
+                        rels = r.get("screenshots") or []
+                        sources = urls if urls else rels
+                        if sources:
+                            st.markdown("##### Agent walkthrough")
+                            shot_cols = st.columns(min(len(sources), 4))
+                            repo_root = Path(__file__).resolve().parents[1]
+                            for j, src in enumerate(sources):
+                                target = src
+                                if not src.startswith("http"):
+                                    p = repo_root / src
+                                    target = str(p) if p.exists() else None
+                                if target:
+                                    with shot_cols[j % len(shot_cols)]:
+                                        label = src.rsplit("/", 1)[-1].rsplit(".", 1)[0]
+                                        st.image(
+                                            target,
+                                            caption=label,
+                                            use_container_width=True,
+                                        )
                     else:
                         st.error(
                             f"Browser run failed: {r.get('error','unknown')}\n\n"
