@@ -106,6 +106,13 @@ gcloud run deploy concierge-api \
   --quiet
 
 API_URL=$(gcloud run services describe concierge-api --region "$REGION" --format='value(status.url)')
+
+# 7b. Patch API with FAKE_RESY_BASE pointing at itself, so deep links from the
+# server-rendered notification copy resolve to the deployed fake-resy.
+gcloud run services update concierge-api \
+  --region "$REGION" \
+  --update-env-vars "FAKE_RESY_BASE=${API_URL}" \
+  --quiet >/dev/null
 echo "  ✓ API: $API_URL"
 
 # 8. Deploy Web (passes API_URL + FAKE_RESY_BASE so deep links work).

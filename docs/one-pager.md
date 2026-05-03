@@ -38,7 +38,7 @@ A multi-agent system on LangGraph. Six nodes across two graphs:
 5. **Notifier** (tick) — fires an in-app card + a real email via Resend with the confirmation code and a link to the confirmation page.
 6. **Booker** (chat, fallback) — HITL gate for one-off bookings outside an active watch.
 
-Live demo: _filled in after `bash infra/deploy.sh`._
+Live demo: <https://concierge-web-eheg65qzwa-uc.a.run.app>
 
 ---
 

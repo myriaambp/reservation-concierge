@@ -4,7 +4,7 @@
 
 A multi-agent system that monitors hard-to-book NYC restaurants on your behalf, explains *why* a slot fits when it opens, and books with one tap.
 
-- **Live demo:** _set after `bash infra/deploy.sh` — see `.env.deploy`_
+- **Live demo:** [concierge-web-eheg65qzwa-uc.a.run.app](https://concierge-web-eheg65qzwa-uc.a.run.app) (API: [concierge-api-…](https://concierge-api-eheg65qzwa-uc.a.run.app))
 - **Business one-pager:** [docs/one-pager.md](docs/one-pager.md)
 - **Architecture diagrams:** [chat graph](docs/chat_graph.png) · [tick graph](docs/tick_graph.png)
 - **Course:** IEORE4576 Agentic AI for Analytics, Columbia, Spring 2026
