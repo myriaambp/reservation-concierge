@@ -19,6 +19,7 @@ from pathlib import Path
 
 from langgraph.graph import END, START, StateGraph
 
+from backend.agents.auto_booker import auto_booker_node
 from backend.agents.booker import booker_node
 from backend.agents.notifier import notifier_node
 from backend.agents.ranker import ranker_node
@@ -56,6 +57,7 @@ def build_tick_graph() -> "CompiledGraph":
     g = StateGraph(AgentState)
     g.add_node("scout", scout_node)
     g.add_node("ranker", ranker_node)
+    g.add_node("auto_booker", auto_booker_node)
     g.add_node("notifier", notifier_node)
     g.add_edge(START, "scout")
     g.add_conditional_edges(
@@ -63,7 +65,8 @@ def build_tick_graph() -> "CompiledGraph":
         _route_after_scout,
         {"ranker": "ranker", END: END},
     )
-    g.add_edge("ranker", "notifier")
+    g.add_edge("ranker", "auto_booker")
+    g.add_edge("auto_booker", "notifier")
     g.add_edge("notifier", END)
     return g.compile()
 

@@ -24,6 +24,9 @@ class Watch(BaseModel):
     time_window_end: str = "22:00"
     created_at: str
     active: bool = True
+    # Auto-book = consent given at watch creation. The user explicitly opts in
+    # to "book it if you find one matching these parameters." Default ON.
+    auto_book: bool = True
 
 
 class UserPrefs(BaseModel):

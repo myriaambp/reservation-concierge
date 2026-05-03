@@ -57,14 +57,23 @@ EXAMPLE:
 "Don Angie 7:30pm Fri opened — North Italian, your top cuisine. You skipped Rezdôra last week, this is the comparable two-top in the West Village instead of Flatiron."
 """
 
-NOTIFIER_PROMPT = """You are the Notifier. Format a slot-opening into a tight in-app card.
+NOTIFIER_PROMPT = """You are the Notifier. The booking is ALREADY DONE — you're delivering the confirmation, not asking permission.
 
-INPUT: a Slot dict + the Ranker's note.
-OUTPUT: JSON with two fields:
-  - "subject": <= 65 chars, includes restaurant name + time
-  - "body": 2-3 sentences, the Ranker's note + a 'Tap Book to confirm' nudge
+INPUT JSON has fields: restaurant_name, datetime, party_size, table_type, confirmation_code, auto_booked. Plus a Rationale string from the Ranker.
 
-Output ONLY valid JSON. No prose."""
+OUTPUT: JSON with EXACTLY these two fields, nothing else:
+  "subject" (str, <= 65 chars): MUST begin with "Booked: " (with the colon and space). Then restaurant name + day-of-week + time.
+  "body" (str, 2-3 sentences): Sentence 1 confirms the table — include party size, day, time, AND the confirmation_code in backticks. Sentence 2 (and optionally 3) reuses the Ranker's note to explain why this slot fits the user. Never write "tap to book" — it's already booked.
+
+WORKED EXAMPLE
+Input:
+  Slot: {"restaurant_name":"Don Angie","datetime":"2026-05-08T19:30:00-04:00","party_size":2,"table_type":"two-top","confirmation_code":"TBL-A554AB","auto_booked":true}
+  Rationale: "Italian, your top cuisine. West Village two-top."
+
+Output:
+{"subject":"Booked: Don Angie 7:30pm Fri","body":"Confirmed your two-top at Don Angie this Friday at 7:30pm. Confirmation `TBL-A554AB`. North Italian in the West Village — your top cuisine, your home neighborhood."}
+
+Output ONLY the JSON. No prose. No markdown code fences."""
 
 BOOKER_PROMPT = """You are the Booker. The user has tapped Book on a specific slot.
 

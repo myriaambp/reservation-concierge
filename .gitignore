@@ -39,6 +39,10 @@ gcp-credentials*.json
 *.log
 logs/
 
+# Local runtime data
+.local_store.json
+seed_data/embeddings.json
+
 # Eval outputs
 backend/evals/output/
 *.eval.json

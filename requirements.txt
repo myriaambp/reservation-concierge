@@ -1,9 +1,10 @@
 # Agent framework
 langgraph==0.2.62
 langchain-core==0.3.29
-langchain-anthropic==0.3.1
 
-# LLM client
+# LLM client — Gemini on Vertex AI (default, GCP-credits-billed)
+google-genai==1.65.0
+# Optional: direct Anthropic API (only used if LLM_PROVIDER=anthropic)
 anthropic==0.40.0
 
 # Web

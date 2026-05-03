@@ -72,6 +72,16 @@ def _load_cases() -> dict:
     return json.loads(_CASES_PATH.read_text())
 
 
+def _strip_code_fence(s: str) -> str:
+    """Gemini sometimes wraps JSON in ```json ... ``` fences."""
+    s = s.strip()
+    if s.startswith("```"):
+        s = s.split("\n", 1)[1] if "\n" in s else s[3:]
+    if s.endswith("```"):
+        s = s.rsplit("```", 1)[0]
+    return s.strip()
+
+
 def _judge(target: str, criteria: str) -> tuple[bool, str]:
     settings = get_settings()
     resp = chat(
@@ -83,11 +93,11 @@ def _judge(target: str, criteria: str) -> tuple[bool, str]:
                 "content": f"OUTPUT:\n{target}\n\nCRITERIA:\n{criteria}",
             }
         ],
-        max_tokens=200,
+        max_tokens=1024,
         agent_name="judge",
         temperature=0.0,
     )
-    text = "".join(b.text for b in resp.content if b.type == "text").strip()
+    text = _strip_code_fence(resp.text)
     try:
         parsed = json.loads(text)
         return bool(parsed.get("pass", False)), parsed.get("reason", "")
@@ -113,18 +123,17 @@ def run_intent(cases: list[dict]) -> list[Result]:
                 }
             ],
             tools=ANTHROPIC_TOOLS,
-            max_tokens=400,
+            max_tokens=2048,
             agent_name="eval-supervisor",
             temperature=0.0,
         )
-        tool_uses = [b for b in resp.content if b.type == "tool_use"]
-        if not tool_uses:
+        if not resp.tool_uses:
             out.append(
-                Result("intent", case["id"], False, "no tool call", raw=str(resp.content))
+                Result("intent", case["id"], False, "no tool call", raw=resp.text[:200])
             )
             continue
 
-        first = tool_uses[0]
+        first = resp.tool_uses[0]
         if first.name != case["expected_tool"]:
             out.append(
                 Result(
@@ -178,7 +187,7 @@ def run_ranker(cases: list[dict]) -> list[Result]:
             agent_name="eval-ranker",
             temperature=0.3,
         )
-        text = "".join(b.text for b in resp.content if b.type == "text").strip()
+        text = resp.text
         passed, reason = _judge(text, case["judge_criteria"])
         out.append(Result("ranker", case["id"], passed, reason, raw=text))
     return out
@@ -201,7 +210,7 @@ def run_notifier(cases: list[dict]) -> list[Result]:
             agent_name="eval-notifier",
             temperature=0.2,
         )
-        text = "".join(b.text for b in resp.content if b.type == "text").strip()
+        text = _strip_code_fence(resp.text)
         # Programmatic check first: must be valid JSON with subject + body.
         try:
             parsed = json.loads(text)

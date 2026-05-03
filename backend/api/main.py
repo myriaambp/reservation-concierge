@@ -78,6 +78,30 @@ def health() -> dict:
     return {"ok": True, "service": "concierge-api"}
 
 
+class TestEmailRequest(BaseModel):
+    to: str
+
+
+@app.post("/api/test-email")
+def test_email(req: TestEmailRequest) -> dict:
+    """Send a one-shot test email so users can verify their setup."""
+    from backend.notifications.email import send_email
+    result = send_email(
+        req.to,
+        "Tableau setup confirmed",
+        (
+            "Your concierge is wired up. From now on, when a slot opens for one "
+            "of your watched restaurants, this is where it'll land. "
+            "(That's the whole pitch.)"
+        ),
+    )
+    return {
+        "ok": result.ok,
+        "provider": result.provider,
+        "detail": result.detail,
+    }
+
+
 @app.get("/api/cost")
 def cost() -> dict:
     led = get_ledger()
@@ -113,12 +137,18 @@ def chat(req: ChatRequest) -> dict:
         _BOOKING_TOKENS.pop(req.confirmation_token, None)
 
     result = chat_graph.invoke(state)
+
+    def _serialize(m: Any) -> dict:
+        if isinstance(m, dict):
+            return {"role": m.get("role", ""), "content": m.get("content", "")}
+        # LangChain message object (HumanMessage / AIMessage / etc.)
+        msg_type = getattr(m, "type", "ai")
+        role = "user" if msg_type == "human" else "assistant"
+        return {"role": role, "content": getattr(m, "content", "")}
+
     return {
         "reply": result.get("final_response", ""),
-        "messages": [
-            {"role": getattr(m, "type", m.get("role", "")), "content": getattr(m, "content", m.get("content", ""))}
-            for m in result.get("messages", [])
-        ],
+        "messages": [_serialize(m) for m in result.get("messages", [])],
     }
 
 
@@ -184,18 +214,48 @@ def list_notifications(user_id: str, limit: int = 20) -> dict:
 
 @app.post("/api/demo/replay/{fixture_id}")
 def demo_replay(fixture_id: str, user_id: str = "demo-user") -> dict:
-    """Trigger a synthetic 'slot opened' event for the demo. Inserts a slot
-    into scratchpad and runs the tick graph end-to-end.
+    """Trigger a synthetic 'slot opened' event for the live demo.
+
+    Pipeline: Ranker (RAG-enriched rationale) → Auto-booker (confirms the
+    booking, since consent was given at watch creation) → Notifier (writes
+    the 'Booked: …' card and emails the user).
     """
+    from datetime import datetime as _dt, timezone as _tz
+    import uuid as _uuid
+    from backend.agents.auto_booker import auto_booker_node
+    from backend.agents.notifier import notifier_node
+    from backend.agents.ranker import ranker_node
+    from backend.memory.state import Watch
     from backend.providers.base import get_provider
 
     provider = get_provider()
     slot = provider.replay_fixture(fixture_id)
+
+    # Ensure a synthetic auto_book watch exists so the auto-booker accepts it.
+    store = get_store()
+    demo_watch_id = f"wch-demo-{fixture_id}"
+    if not any(w.id == demo_watch_id for w in store.list_watches(user_id=user_id, active_only=True)):
+        store.add_watch(
+            Watch(
+                id=demo_watch_id,
+                user_id=user_id,
+                restaurant_id=slot.restaurant_id,
+                party_size=slot.party_size,
+                date_window_start=slot.datetime.date().isoformat(),
+                date_window_end=slot.datetime.date().isoformat(),
+                time_window_start="00:00",
+                time_window_end="23:59",
+                created_at=_dt.now(_tz.utc).isoformat(),
+                active=True,
+                auto_book=True,
+            )
+        )
+
     state = {
         "user_id": user_id,
         "pending_slots": [
             {
-                "watch_id": "demo-watch",
+                "watch_id": demo_watch_id,
                 "user_id": user_id,
                 "slot_id": slot.id,
                 "restaurant_id": slot.restaurant_id,
@@ -205,14 +265,17 @@ def demo_replay(fixture_id: str, user_id: str = "demo-user") -> dict:
             }
         ],
     }
-    # Skip Scout (we already have pending_slots); invoke Ranker → Notifier directly.
-    from backend.agents.notifier import notifier_node
-    from backend.agents.ranker import ranker_node
 
-    ranked = ranker_node(state)
-    state["pending_slots"] = ranked["pending_slots"]
+    # Run the post-scout chain: rank → auto-book → notify.
+    state.update(ranker_node(state))
+    state.update(auto_booker_node(state))
     notif = notifier_node(state)
-    return {"sent": notif.get("scratchpad", {}).get("notifications_sent", [])}
+    return {
+        "sent": notif.get("scratchpad", {}).get("notifications_sent", []),
+        "auto_booked": [
+            s for s in state.get("pending_slots", []) if s.get("auto_booked")
+        ],
+    }
 
 
 # ---------- cron-triggered tick ----------

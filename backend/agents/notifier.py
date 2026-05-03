@@ -19,20 +19,52 @@ def notifier_node(state: AgentState) -> dict:
     pending = state.get("pending_slots", [])
     sent: list[dict] = []
 
+    from datetime import datetime as _dt
+
     for slot in pending[:3]:  # throttle: never spam more than 3 per tick per user
+        # Pre-compute day-of-week + readable time so the LLM doesn't have to.
+        try:
+            dt = _dt.fromisoformat(slot["datetime"])
+            day_short = dt.strftime("%a")  # Mon, Tue, ...
+            day_long = dt.strftime("%A %b %-d")
+            t_str = dt.strftime("%-I:%M%p").lower().replace(":00", "")
+        except Exception:
+            day_short = day_long = t_str = ""
+
+        slot_summary = {
+            k: slot.get(k)
+            for k in [
+                "restaurant_name",
+                "party_size",
+                "table_type",
+                "confirmation_code",
+                "auto_booked",
+            ]
+        }
+        slot_summary["day_short"] = day_short  # e.g. "Fri"
+        slot_summary["day_long"] = day_long    # e.g. "Friday May 8"
+        slot_summary["time_str"] = t_str       # e.g. "7:30pm"
         prompt_input = (
-            f"Slot: {json.dumps({k: slot[k] for k in ['restaurant_name', 'datetime', 'party_size', 'table_type']})}\n"
-            f"Rationale: {slot.get('rationale', '')}"
+            f"Slot: {json.dumps(slot_summary)}\n"
+            f"Rationale: {slot.get('rationale', '')}\n"
+            f"Auto-booked: {bool(slot.get('auto_booked'))}"
         )
         resp = chat(
             model=settings.worker_model,
             system=NOTIFIER_PROMPT,
             messages=[{"role": "user", "content": prompt_input}],
-            max_tokens=200,
+            max_tokens=400,
             agent_name="notifier",
             temperature=0.2,
+            disable_thinking=True,  # JSON template-fill, no need to think
         )
-        text = "".join(b.text for b in resp.content if b.type == "text").strip()
+        text = resp.text
+        # Gemini sometimes wraps JSON in ```json ... ``` fences.
+        if text.startswith("```"):
+            inner = text.split("\n", 1)[1] if "\n" in text else text[3:]
+            if inner.endswith("```"):
+                inner = inner.rsplit("```", 1)[0]
+            text = inner.strip()
 
         # Best-effort JSON parse; fall back to plain text on failure.
         subject = slot.get("restaurant_name", "Slot")

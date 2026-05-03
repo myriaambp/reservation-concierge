@@ -23,13 +23,21 @@ _LOCAL_STORE_PATH = Path(__file__).resolve().parents[2] / ".local_store.json"
 
 
 def _firestore() -> Any | None:
-    """Return a Firestore client if configured + available, else None."""
+    """Return a Firestore client if explicitly enabled via MEMORY_BACKEND=firestore,
+    else None (which routes everything to the local JSON store).
+
+    GCP_PROJECT_ID alone is NOT enough — we use it for Vertex AI Gemini, which
+    doesn't require Firestore. To opt into Firestore set MEMORY_BACKEND=firestore
+    in the env (deploy.sh does this automatically; local dev stays on JSON).
+    """
     global _firestore_client
     if _firestore_client is not None:
         return _firestore_client
 
     settings = get_settings()
-    if not settings.gcp_project_id and not os.getenv("FIRESTORE_EMULATOR_HOST"):
+    if settings.memory_backend != "firestore" and not os.getenv(
+        "FIRESTORE_EMULATOR_HOST"
+    ):
         return None
 
     with _lock:

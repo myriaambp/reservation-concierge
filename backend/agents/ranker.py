@@ -53,11 +53,12 @@ def ranker_node(state: AgentState) -> dict:
             model=settings.worker_model,
             system=RANKER_PROMPT,
             messages=[{"role": "user", "content": user_msg}],
-            max_tokens=200,
+            max_tokens=400,
             agent_name="ranker",
             temperature=0.3,
+            disable_thinking=True,  # 2-sentence formatter, no need to think
         )
-        rationale = "".join(b.text for b in resp.content if b.type == "text").strip()
+        rationale = resp.text
 
         enriched.append(
             {

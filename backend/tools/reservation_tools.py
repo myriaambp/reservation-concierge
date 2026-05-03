@@ -34,6 +34,11 @@ class GetUserPrefsInput(BaseModel):
     user_id: str
 
 
+class ListWatchesInput(BaseModel):
+    user_id: str
+    active_only: bool = True
+
+
 class AddWatchInput(BaseModel):
     user_id: str
     restaurant_id: str
@@ -120,6 +125,15 @@ def get_user_prefs(args: dict) -> dict:
     return get_store().get_user(inp.user_id).model_dump()
 
 
+def list_watches(args: dict) -> dict:
+    inp = ListWatchesInput(**args)
+    watches = get_store().list_watches(user_id=inp.user_id, active_only=inp.active_only)
+    return {
+        "watches": [w.model_dump() for w in watches],
+        "count": len(watches),
+    }
+
+
 def add_watch(args: dict) -> dict:
     inp = AddWatchInput(**args)
     watch = Watch(
@@ -192,9 +206,30 @@ def send_notification(args: dict) -> dict:
         "slot_id": inp.slot_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    get_store().record_notification(payload)
-    # In production, also fire SendGrid / web-push here. Skipped in dev.
-    return {"ok": True, "notification_id": payload["id"]}
+    store = get_store()
+
+    # Best-effort: also fire a real email if the user has one saved.
+    email_status = "skipped"
+    user_email = ""
+    try:
+        user = store.get_user(inp.user_id)
+        user_email = user.email
+    except Exception:
+        pass
+
+    if user_email and "@" in user_email:
+        from backend.notifications.email import send_email
+        result = send_email(user_email, inp.subject, inp.body)
+        email_status = f"{result.provider}:{'ok' if result.ok else 'fail'}"
+        payload["email_status"] = email_status
+        payload["email_to"] = user_email
+
+    store.record_notification(payload)
+    return {
+        "ok": True,
+        "notification_id": payload["id"],
+        "email_status": email_status,
+    }
 
 
 def record_outcome(args: dict) -> dict:
@@ -238,6 +273,11 @@ ANTHROPIC_TOOLS: list[dict] = [
         "input_schema": _schema(GetUserPrefsInput),
     },
     {
+        "name": "list_watches",
+        "description": "List active watches for the user. Use when the user asks 'what are you watching for me' or wants to review/cancel.",
+        "input_schema": _schema(ListWatchesInput),
+    },
+    {
         "name": "add_watch",
         "description": "Register a watch on a restaurant for a date/time window. Returns watch_id.",
         "input_schema": _schema(AddWatchInput),
@@ -278,6 +318,7 @@ ANTHROPIC_TOOLS: list[dict] = [
 TOOL_DISPATCH: dict[str, Callable[[dict], dict]] = {
     "search_restaurants": search_restaurants,
     "get_user_prefs": get_user_prefs,
+    "list_watches": list_watches,
     "add_watch": add_watch,
     "list_open_slots": list_open_slots,
     "book_slot": book_slot,

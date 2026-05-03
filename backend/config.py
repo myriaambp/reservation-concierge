@@ -8,16 +8,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    anthropic_api_key: str = ""
+    anthropic_api_key: str = ""  # only used if LLM_PROVIDER=anthropic
     gcp_project_id: str = ""
     gcp_region: str = "us-central1"
 
-    supervisor_model: str = "claude-opus-4-7"
-    worker_model: str = "claude-sonnet-4-6"
-    judge_model: str = "claude-opus-4-7"
+    # Defaults run on Vertex AI Gemini, billed against GCP credits.
+    # Gemini 2.5 Flash is the workhorse — its thinking budget is light enough
+    # not to starve tool-use output, and it's ~10× cheaper than 2.5 Pro.
+    supervisor_model: str = "gemini-2.5-flash"
+    worker_model: str = "gemini-2.5-flash"
+    judge_model: str = "gemini-2.5-flash"
     embedding_model: str = "text-embedding-005"
 
     provider_mode: str = "mock"
+    # Memory backend: "local" (JSON file, default for dev) or "firestore"
+    # (production). Local mode skips Firestore entirely so dev works without
+    # enabling the Cloud Firestore API.
+    memory_backend: str = "local"
 
     sendgrid_api_key: str = ""
     notify_from_email: str = "concierge@tableau.app"
