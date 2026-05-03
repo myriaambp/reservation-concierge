@@ -297,40 +297,76 @@ h3 { font-size: 20px !important; line-height: 1.2 !important; }
 }
 
 /* Buttons (Streamlit overrides) */
-.stButton > button {
+.stButton > button,
+.stButton > button p,
+.stButton > button div {
     font-family: 'Inter', sans-serif !important;
     font-size: 13px !important;
     font-weight: 500 !important;
     letter-spacing: 0.02em !important;
+    color: #1a1a1a !important;
+}
+.stButton > button {
     border-radius: 8px !important;
     border: 1px solid #e8e2d4 !important;
     padding: 8px 18px !important;
     background: #fffdf8 !important;
-    color: #1a1a1a !important;
 }
 .stButton > button:hover {
     border-color: #b89968 !important;
-    color: #1a1a1a !important;
 }
-.stButton > button[kind="primary"] {
+/* Primary buttons — black with cream text */
+.stButton > button[kind="primary"],
+.stButton > button[kind="primary"] p,
+.stButton > button[kind="primary"] div,
+.stButton > button[data-testid="baseButton-primary"],
+.stButton > button[data-testid="baseButton-primary"] p,
+.stButton > button[data-testid="baseButton-primary"] div {
     background: #1a1a1a !important;
     color: #f5f1e8 !important;
     border-color: #1a1a1a !important;
 }
-.stButton > button[kind="primary"]:hover {
+.stButton > button[kind="primary"]:hover,
+.stButton > button[data-testid="baseButton-primary"]:hover {
     background: #2d1810 !important;
     color: #f5f1e8 !important;
 }
 
-/* Form fields */
-.stTextInput input, .stTextArea textarea, .stSelectbox > div > div, .stNumberInput input, .stDateInput input {
+/* Form fields — explicit text + placeholder colors so input is readable */
+.stTextInput input,
+.stTextArea textarea,
+.stNumberInput input,
+.stDateInput input {
     background: #fffdf8 !important;
+    color: #1a1a1a !important;
     border-radius: 8px !important;
     border: 1px solid #e8e2d4 !important;
     font-family: 'Inter', sans-serif !important;
+    caret-color: #1a1a1a !important;
 }
-.stTextInput input:focus {
+.stTextInput input::placeholder,
+.stTextArea textarea::placeholder,
+.stNumberInput input::placeholder,
+.stDateInput input::placeholder {
+    color: #6b6453 !important;
+    opacity: 0.55 !important;
+}
+.stTextInput input:focus,
+.stTextArea textarea:focus,
+.stNumberInput input:focus,
+.stDateInput input:focus {
     border-color: #b89968 !important;
+}
+/* Selectbox readable text */
+.stSelectbox > div > div,
+.stSelectbox [data-baseweb="select"] {
+    background: #fffdf8 !important;
+    color: #1a1a1a !important;
+    border-radius: 8px !important;
+    border: 1px solid #e8e2d4 !important;
+}
+.stSelectbox [data-baseweb="select"] * {
+    color: #1a1a1a !important;
 }
 
 /* Chat */
