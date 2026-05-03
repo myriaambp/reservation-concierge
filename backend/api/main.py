@@ -3,6 +3,10 @@ and demo controls. Runs on Cloud Run as `concierge-api`.
 """
 from __future__ import annotations
 
+# Load .env into os.environ before any other imports that might read env vars.
+from dotenv import load_dotenv  # noqa: E402
+load_dotenv()  # noqa: E402
+
 import secrets
 from datetime import datetime, timezone
 from typing import Any
