@@ -42,10 +42,10 @@ Myriam Bengoechea Pardo (`mb5500`) · Blanca Valera Caballero (`bv2358`) — IEO
    Nothing technically. But Resy's incentives are aligned with restaurants, not diners. They'd cannibalize their own restaurant relationships if they prioritized cancellation arbitrage.
 
 3. **"How do you avoid being the next AutoResy?"**
-   AutoResy auto-booked without consent. We never auto-book — every booking goes through a HITL gate. We also operate on mock + partnership-led data, not unauthorized scraping.
+   AutoResy scraped real Resy without consent and auto-booked accounts they didn't own. We do neither. The agent runs against a Tableau-controlled sandbox (TableTime); the path to real bookings is partnership. Consent is given at watch creation — the user explicitly opts into a date, time, and party.
 
-4. **"Aren't your unit economics built on Anthropic pricing?"**
-   Yes — and a 3× hike would compress margin to ~50%. Our LLM wrapper has model swap built in; we'd move Notifier and Scout to Haiku. The consumer market still works.
+4. **"What if Vertex / Gemini pricing moves?"**
+   We chose Gemini 2.5 Flash on Vertex because it bills against our GCP credits (zero out-of-pocket while we iterate) and is ~10× cheaper than Sonnet per token. Our LLM client (`backend/llm/client.py`) is provider-agnostic — `LLMResponse` unifies the shape and switching to Anthropic, OpenAI, or self-hosted only changes the inside of `chat()`. A 3× Vertex hike cuts margin from 93% to ~80%; we'd absorb it.
 
 5. **"How do you get the first 1,000 users?"**
    Concierge desks at luxury hotels become channel partners. Each one already has a list of 5,000 affluent guests. Plus a referral mechanic — friends-eating-together is a built-in viral loop.
