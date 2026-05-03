@@ -1,0 +1,39 @@
+# Agent framework
+langgraph==0.2.62
+langchain-core==0.3.29
+langchain-anthropic==0.3.1
+
+# LLM client
+anthropic==0.40.0
+
+# Web
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+streamlit==1.41.1
+pydantic==2.10.4
+pydantic-settings==2.7.1
+
+# GCP
+google-cloud-firestore==2.19.0
+google-cloud-secret-manager==2.21.1
+google-auth==2.37.0
+google-cloud-aiplatform==1.74.0
+
+# Notifications
+sendgrid==6.11.0
+
+# Observability (optional)
+langfuse==2.57.0
+
+# Vectors fallback (used only if Firestore vector search disabled)
+faiss-cpu==1.9.0
+numpy==1.26.4
+
+# Utilities
+python-dotenv==1.0.1
+httpx==0.28.1
+tenacity==9.0.0
+rich==13.9.4
+
+# Eval / testing
+pytest==8.3.4

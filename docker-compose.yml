@@ -1,0 +1,34 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    environment:
+      SERVICE: api
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      PROVIDER_MODE: mock
+      INTERNAL_TICK_TOKEN: dev-tick-token
+      PORT: "8000"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./seed_data:/app/seed_data
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/Dockerfile
+    environment:
+      SERVICE: web
+      API_BASE_URL: http://api:8000
+      DEMO_USER_ID: priya-demo
+      PORT: "8501"
+    ports:
+      - "8501:8501"
+    depends_on:
+      - api
+    volumes:
+      - ./frontend:/app/frontend
+      - ./seed_data:/app/seed_data

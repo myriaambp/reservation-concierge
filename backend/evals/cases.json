@@ -1,0 +1,128 @@
+{
+  "intent_cases": [
+    {
+      "id": "i01",
+      "input": "Watch Don Angie next Friday for 2.",
+      "expected_tool": "add_watch",
+      "expected_args": {"restaurant_id": "don-angie", "party_size": 2}
+    },
+    {
+      "id": "i02",
+      "input": "I want a romantic Italian spot in the West Village for my anniversary.",
+      "expected_tool": "search_restaurants",
+      "expected_args": {"cuisine": "Italian", "neighborhood": "West Village"}
+    },
+    {
+      "id": "i03",
+      "input": "Anything open at Carbone tomorrow night?",
+      "expected_tool": "list_open_slots",
+      "expected_args": {"restaurant_id": "carbone"}
+    },
+    {
+      "id": "i04",
+      "input": "Find me a Korean place worth booking for a date.",
+      "expected_tool": "search_restaurants",
+      "expected_args": {"cuisine": "Korean"}
+    },
+    {
+      "id": "i05",
+      "input": "Watch Lilia for next Tuesday or Wednesday, party of 2.",
+      "expected_tool": "add_watch",
+      "expected_args": {"restaurant_id": "lilia", "party_size": 2}
+    },
+    {
+      "id": "i06",
+      "input": "Tell me about Tatiana, why is everyone talking about it?",
+      "expected_tool": "rag_lookup",
+      "expected_args": {}
+    },
+    {
+      "id": "i07",
+      "input": "Watch the Polo Bar for any Saturday night in May, 4 people.",
+      "expected_tool": "add_watch",
+      "expected_args": {"restaurant_id": "polo-bar", "party_size": 4}
+    },
+    {
+      "id": "i08",
+      "input": "What are my saved preferences?",
+      "expected_tool": "get_user_prefs",
+      "expected_args": {}
+    },
+    {
+      "id": "i09",
+      "input": "I'm in NoMad tonight, anywhere good with a tasting menu?",
+      "expected_tool": "search_restaurants",
+      "expected_args": {"neighborhood": "NoMad"}
+    },
+    {
+      "id": "i10",
+      "input": "Watch Frenchette for Wednesday May 14, party of 4.",
+      "expected_tool": "add_watch",
+      "expected_args": {"restaurant_id": "frenchette", "party_size": 4}
+    }
+  ],
+  "ranker_cases": [
+    {
+      "id": "r01",
+      "slot": {"restaurant_name": "Don Angie", "datetime": "2026-05-09T19:30:00-04:00", "party_size": 2, "table_type": "two-top"},
+      "user_prefs": {"cuisines_loved": ["Italian"], "neighborhoods": ["West Village"], "skipped_restaurants": ["rezdora"]},
+      "judge_criteria": "References Italian cuisine OR West Village OR a comparison to Rezdora. 1-2 sentences. No exclamation marks."
+    },
+    {
+      "id": "r02",
+      "slot": {"restaurant_name": "Tatiana by Kwame Onwuachi", "datetime": "2026-05-10T18:00:00-04:00", "party_size": 4, "table_type": "main-dining"},
+      "user_prefs": {"cuisines_loved": ["Caribbean", "American"], "neighborhoods": ["Lincoln Square"], "skipped_restaurants": []},
+      "judge_criteria": "References Caribbean OR Onwuachi OR Lincoln Center pre-show angle. 1-2 sentences. No exclamation marks."
+    },
+    {
+      "id": "r03",
+      "slot": {"restaurant_name": "Atomix", "datetime": "2026-06-12T18:30:00-04:00", "party_size": 2, "table_type": "counter"},
+      "user_prefs": {"cuisines_loved": ["Korean"], "neighborhoods": ["NoMad"], "booked_restaurants": ["cote"]},
+      "judge_criteria": "References Korean tasting OR notes the rarity of Atomix counter seats. 1-2 sentences."
+    },
+    {
+      "id": "r04",
+      "slot": {"restaurant_name": "Lucali", "datetime": "2026-05-12T19:00:00-04:00", "party_size": 2, "table_type": "main-dining"},
+      "user_prefs": {"cuisines_loved": ["Pizza"], "neighborhoods": ["Carroll Gardens"], "skipped_restaurants": []},
+      "judge_criteria": "References pizza OR walk-in/BYOB nature OR Brooklyn. 1-2 sentences."
+    },
+    {
+      "id": "r05",
+      "slot": {"restaurant_name": "Le Bernardin", "datetime": "2026-05-15T13:00:00-04:00", "party_size": 2, "table_type": "main-dining"},
+      "user_prefs": {"cuisines_loved": ["French", "Seafood"], "neighborhoods": ["Midtown"], "booked_restaurants": []},
+      "judge_criteria": "References seafood OR French OR lunch-as-bargain angle. 1-2 sentences."
+    }
+  ],
+  "notifier_cases": [
+    {
+      "id": "n01",
+      "slot": {"restaurant_name": "Don Angie", "datetime": "2026-05-09T19:30:00-04:00", "party_size": 2, "table_type": "two-top"},
+      "rationale": "Italian, your top cuisine. West Village two-top.",
+      "judge_criteria": "Returns valid JSON with 'subject' (<=65 chars, includes Don Angie) and 'body' (mentions tap-to-book)."
+    },
+    {
+      "id": "n02",
+      "slot": {"restaurant_name": "Tatiana by Kwame Onwuachi", "datetime": "2026-05-10T18:00:00-04:00", "party_size": 4, "table_type": "main-dining"},
+      "rationale": "Pre-Lincoln-Center 6pm slot for 4.",
+      "judge_criteria": "Returns valid JSON with 'subject' and 'body'. Subject mentions Tatiana and time."
+    },
+    {
+      "id": "n03",
+      "slot": {"restaurant_name": "Carbone", "datetime": "2026-05-09T21:45:00-04:00", "party_size": 4, "table_type": "round-booth"},
+      "rationale": "Saturday late four-top, exceptionally rare.",
+      "judge_criteria": "Returns valid JSON. Body conveys urgency without exclamation marks."
+    },
+    {
+      "id": "n04",
+      "slot": {"restaurant_name": "Atomix", "datetime": "2026-06-12T18:30:00-04:00", "party_size": 2, "table_type": "counter"},
+      "rationale": "Two counter seats opened 6 weeks out — extremely rare.",
+      "judge_criteria": "Returns valid JSON. Body acknowledges rarity."
+    },
+    {
+      "id": "n05",
+      "slot": {"restaurant_name": "I Sodi", "datetime": "2026-05-11T19:00:00-04:00", "party_size": 2, "table_type": "two-top"},
+      "rationale": "Sunday 7pm two-top, ideal for the candlelit room.",
+      "judge_criteria": "Returns valid JSON. Subject under 65 chars."
+    }
+  ]
+}

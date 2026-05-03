@@ -1,0 +1,93 @@
+{
+  "description": "Demo replay fixtures. Each entry simulates a slot opening for a restaurant. Used by MockResyProvider when DEMO_FIXTURE_REPLAY=true and a 'replay' action is triggered from the UI.",
+  "events": [
+    {
+      "id": "fx-don-angie-1",
+      "restaurant_id": "don-angie",
+      "slot": {
+        "datetime": "2026-05-08T19:30:00-04:00",
+        "party_size": 2,
+        "table_type": "two-top",
+        "duration_minutes": 90
+      },
+      "narrative": "Slot just opened — last-minute cancellation."
+    },
+    {
+      "id": "fx-carbone-1",
+      "restaurant_id": "carbone",
+      "slot": {
+        "datetime": "2026-05-09T21:45:00-04:00",
+        "party_size": 4,
+        "table_type": "round-booth",
+        "duration_minutes": 120
+      },
+      "narrative": "9:45pm Saturday four-top opened. These are rare for Carbone."
+    },
+    {
+      "id": "fx-tatiana-1",
+      "restaurant_id": "tatiana",
+      "slot": {
+        "datetime": "2026-05-10T18:00:00-04:00",
+        "party_size": 4,
+        "table_type": "main-dining",
+        "duration_minutes": 105
+      },
+      "narrative": "Pre-Lincoln-Center 6pm slot, four-top."
+    },
+    {
+      "id": "fx-rezdora-1",
+      "restaurant_id": "rezdora",
+      "slot": {
+        "datetime": "2026-05-07T20:15:00-04:00",
+        "party_size": 2,
+        "table_type": "bar",
+        "duration_minutes": 75
+      },
+      "narrative": "Bar seats — Tour of Emilia tasting available."
+    },
+    {
+      "id": "fx-atomix-1",
+      "restaurant_id": "atomix",
+      "slot": {
+        "datetime": "2026-06-12T18:30:00-04:00",
+        "party_size": 2,
+        "table_type": "counter",
+        "duration_minutes": 150
+      },
+      "narrative": "Counter seats 6 weeks out — extremely rare."
+    },
+    {
+      "id": "fx-i-sodi-1",
+      "restaurant_id": "i-sodi",
+      "slot": {
+        "datetime": "2026-05-11T19:00:00-04:00",
+        "party_size": 2,
+        "table_type": "two-top",
+        "duration_minutes": 90
+      },
+      "narrative": "Sunday 7pm two-top opened."
+    },
+    {
+      "id": "fx-lilia-1",
+      "restaurant_id": "lilia",
+      "slot": {
+        "datetime": "2026-05-13T21:00:00-04:00",
+        "party_size": 2,
+        "table_type": "two-top",
+        "duration_minutes": 90
+      },
+      "narrative": "Late Tuesday 9pm two-top."
+    },
+    {
+      "id": "fx-frenchette-1",
+      "restaurant_id": "frenchette",
+      "slot": {
+        "datetime": "2026-05-14T20:30:00-04:00",
+        "party_size": 4,
+        "table_type": "main-dining",
+        "duration_minutes": 105
+      },
+      "narrative": "Wed 8:30pm four-top — Tribeca dinner."
+    }
+  ]
+}

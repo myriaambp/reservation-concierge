@@ -1,0 +1,60 @@
+"""Notifier — turns a ranked slot into a notification payload, fires it,
+and records to history.
+
+Class concepts: tool calling (send_notification), context engineering, memory.
+"""
+from __future__ import annotations
+
+import json
+
+from backend.agents.prompts import NOTIFIER_PROMPT
+from backend.config import get_settings
+from backend.llm.client import chat
+from backend.memory.state import AgentState
+from backend.tools.reservation_tools import call_tool
+
+
+def notifier_node(state: AgentState) -> dict:
+    settings = get_settings()
+    pending = state.get("pending_slots", [])
+    sent: list[dict] = []
+
+    for slot in pending[:3]:  # throttle: never spam more than 3 per tick per user
+        prompt_input = (
+            f"Slot: {json.dumps({k: slot[k] for k in ['restaurant_name', 'datetime', 'party_size', 'table_type']})}\n"
+            f"Rationale: {slot.get('rationale', '')}"
+        )
+        resp = chat(
+            model=settings.worker_model,
+            system=NOTIFIER_PROMPT,
+            messages=[{"role": "user", "content": prompt_input}],
+            max_tokens=200,
+            agent_name="notifier",
+            temperature=0.2,
+        )
+        text = "".join(b.text for b in resp.content if b.type == "text").strip()
+
+        # Best-effort JSON parse; fall back to plain text on failure.
+        subject = slot.get("restaurant_name", "Slot")
+        body = slot.get("rationale", "Slot opened.")
+        try:
+            parsed = json.loads(text)
+            subject = parsed.get("subject", subject)
+            body = parsed.get("body", body)
+        except json.JSONDecodeError:
+            pass
+
+        # Fire via tool — records to store.
+        call_tool(
+            "send_notification",
+            {
+                "user_id": slot["user_id"],
+                "channel": "in_app",
+                "subject": subject,
+                "body": body,
+                "slot_id": slot["slot_id"],
+            },
+        )
+        sent.append({"slot_id": slot["slot_id"], "subject": subject, "body": body})
+
+    return {"scratchpad": {"notifications_sent": sent}}

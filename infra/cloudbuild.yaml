@@ -1,0 +1,61 @@
+# Cloud Build pipeline: builds image once, deploys both services.
+substitutions:
+  _REGION: us-central1
+  _REPO: tableau
+  _IMAGE_NAME: concierge
+
+steps:
+  # 1. Build the image.
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${SHORT_SHA}
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:latest
+      - --file=infra/Dockerfile
+      - .
+
+  # 2. Push.
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [push, --all-tags, '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}']
+
+  # 3. Deploy API service.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - concierge-api
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=2
+      - --memory=1Gi
+      - --concurrency=20
+      - --set-env-vars=SERVICE=api,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${_REGION}
+      - --set-secrets=ANTHROPIC_API_KEY=anthropic-api-key:latest,INTERNAL_TICK_TOKEN=internal-tick-token:latest
+
+  # 4. Deploy web service.
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - concierge-web
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --min-instances=0
+      - --max-instances=2
+      - --memory=1Gi
+      - --concurrency=10
+      - --set-env-vars=SERVICE=web
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:${SHORT_SHA}'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_IMAGE_NAME}:latest'
