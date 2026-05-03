@@ -1,13 +1,14 @@
 """Tableau — themed Streamlit frontend.
 
-Editorial-grade UI: dark cream + black + gold palette, Cormorant Garamond
-serif headings, generous whitespace, restaurant cards with restraint. The user
-flow is HOME → CONCIERGE → SETTINGS, with a separate DEMO tab for the
-fixture-replay controls during the live class demo.
+Flow:
+  1. Not signed in → centered sign-in card (name + email + sign-in button).
+  2. Signed in → main app: HOME (reservations) / CONCIERGE / ACCOUNT [/ DEMO].
+The email entered at sign-in IS the user_id (lowercased + sanitized).
 """
 from __future__ import annotations
 
 import os
+import re
 import time
 from datetime import date, timedelta
 from pathlib import Path
@@ -16,8 +17,13 @@ import httpx
 import streamlit as st
 
 API = os.getenv("API_BASE_URL", "http://localhost:8000")
-USER_ID = os.getenv("DEMO_USER_ID", "priya-demo")
 DEMO_MODE = os.getenv("DEMO_MODE", "true").lower() == "true"
+
+
+def _email_to_user_id(email: str) -> str:
+    """Stable, URL-safe user_id derived from the email address."""
+    e = email.strip().lower()
+    return re.sub(r"[^a-z0-9._-]+", "-", e) or "guest"
 
 st.set_page_config(
     page_title="Tableau — Reservation Concierge",
@@ -453,39 +459,126 @@ def api_delete(path: str):
         return {"error": str(exc)}
 
 
-# ---------- Session bootstrap ----------
+# ---------- Sign-in gate ----------
 
-if "prefs" not in st.session_state:
-    p = api_get(f"/api/prefs/{USER_ID}")
-    if "error" in p:
-        st.session_state.prefs = {
-            "user_id": USER_ID, "name": "Priya", "email": "",
-            "cuisines_loved": ["Italian", "Korean"],
-            "neighborhoods": ["West Village", "Flatiron", "NoMad"],
-            "default_party_size": 2,
-            "skipped_restaurants": [], "booked_restaurants": [],
-        }
-    else:
-        st.session_state.prefs = p
-
-if "chat_history" not in st.session_state:
+if "signed_in" not in st.session_state:
+    st.session_state.signed_in = False
+    st.session_state.user_id = ""
+    st.session_state.prefs = {}
     st.session_state.chat_history = []
 
 
-# ---------- Hero ----------
+def _sign_in(name: str, email: str) -> None:
+    user_id = _email_to_user_id(email)
+    # Pull existing prefs if any, else seed with the entered name/email.
+    existing = api_get(f"/api/prefs/{user_id}")
+    prefs = (existing if "error" not in existing else {}) or {}
+    prefs.update(
+        {
+            "user_id": user_id,
+            "name": name.strip() or prefs.get("name", "Guest"),
+            "email": email.strip(),
+        }
+    )
+    # Seed sensible taste defaults on first sign-in.
+    prefs.setdefault("cuisines_loved", ["Italian", "Korean"])
+    prefs.setdefault("neighborhoods", ["West Village", "NoMad"])
+    prefs.setdefault("default_party_size", 2)
+    prefs.setdefault("cuisines_avoided", [])
+    prefs.setdefault("dietary", [])
+    prefs.setdefault("skipped_restaurants", [])
+    prefs.setdefault("booked_restaurants", [])
 
-prefs = st.session_state.prefs
-greeting = "Good evening" if 17 <= int(time.strftime("%H")) else "Good day"
+    api_put("/api/prefs", prefs)
+    st.session_state.user_id = user_id
+    st.session_state.prefs = prefs
+    st.session_state.signed_in = True
+    st.session_state.chat_history = []
 
-st.markdown(
-    f"""<div class='hero'>
+
+def _sign_out() -> None:
+    for k in ("signed_in", "user_id", "prefs", "chat_history"):
+        if k in st.session_state:
+            del st.session_state[k]
+
+
+# ---------- Sign-in screen (shown when not signed in) ----------
+
+if not st.session_state.signed_in:
+    st.markdown(
+        """<div class='hero' style='padding:54px 36px 48px;text-align:center'>
 <div class='hero-eyebrow'>The Reservation Concierge</div>
 <div class='hero-title'>Tableau</div>
-<div class='hero-tagline'>{greeting}{', ' + prefs.get('name', '').split()[0] if prefs.get('name') else ''}.</div>
-<div class='hero-sub'>We watch the 600 hardest tables in New York and ping you when one fits. You tap once. We confirm.</div>
+<div class='hero-tagline' style='margin-left:auto;margin-right:auto'>The Bloomberg Terminal for the 600 hardest tables in New York.</div>
+<div class='hero-sub' style='margin-left:auto;margin-right:auto'>Tell us a restaurant, a date, and a party size. We watch. When a slot opens, we book it and email you the confirmation.</div>
 </div>""",
-    unsafe_allow_html=True,
-)
+        unsafe_allow_html=True,
+    )
+
+    _, mid, _ = st.columns([1, 1.5, 1])
+    with mid:
+        st.markdown(
+            """<div class='r-card' style='padding:30px 32px'>
+<div class='card-restaurant' style='margin-bottom:6px'>Sign in</div>
+<div class='card-meta' style='margin-bottom:18px'>One step. Email is your account; we use it to deliver booking confirmations.</div>
+</div>""",
+            unsafe_allow_html=True,
+        )
+        with st.form("sign_in", clear_on_submit=False):
+            name_in = st.text_input(
+                "Your name",
+                placeholder="Priya Shah",
+                key="signin_name",
+            )
+            email_in = st.text_input(
+                "Email",
+                placeholder="you@example.com",
+                key="signin_email",
+            )
+            submit = st.form_submit_button("Sign in", type="primary", use_container_width=True)
+
+            if submit:
+                if not email_in.strip() or "@" not in email_in:
+                    st.error("Enter a valid email.")
+                else:
+                    _sign_in(name_in, email_in)
+                    st.rerun()
+    st.stop()
+
+
+# ---------- Signed-in app ----------
+
+USER_ID = st.session_state.user_id
+prefs = st.session_state.prefs
+
+# ---------- Hero ----------
+
+greeting = "Good evening" if 17 <= int(time.strftime("%H")) else "Good day"
+first_name = (prefs.get("name") or "").split()[0] if prefs.get("name") else ""
+
+# Top-right: signed-in chip + sign out
+hero_col, account_col = st.columns([5, 1])
+with account_col:
+    st.markdown(
+        f"<div style='text-align:right;font-size:12px;color:#6b6453;padding-top:8px'>"
+        f"Signed in as<br/><b style='color:#1a1a1a'>{prefs.get('email','')}</b>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
+    if st.button("Sign out", key="signout-top", use_container_width=True):
+        _sign_out()
+        st.rerun()
+
+with hero_col:
+    st.markdown(
+        f"""<div class='hero'>
+<div class='hero-eyebrow'>The Reservation Concierge</div>
+<div class='hero-title'>Tableau</div>
+<div class='hero-tagline'>{greeting}{', ' + first_name if first_name else ''}.</div>
+<div class='hero-sub'>We watch the 600 hardest tables in New York and book the moment one fits. Confirmation lands in your inbox.</div>
+</div>""",
+        unsafe_allow_html=True,
+    )
 
 
 # ---------- Tabs ----------
@@ -502,7 +595,7 @@ tabs = st.tabs(tab_labels)
 with tabs[0]:
     st.markdown(
         '<div class="section-head">Your tables</div>'
-        '<div class="section-sub">Watches we&rsquo;re tracking and recent alerts when slots opened.</div>',
+        '<div class="section-sub">Reservations we&rsquo;ve booked for you, and the watches still in flight.</div>',
         unsafe_allow_html=True,
     )
 
@@ -525,11 +618,11 @@ with tabs[0]:
         unsafe_allow_html=True,
     )
 
-    col_left, col_right = st.columns([1.4, 1])
+    col_left, col_right = st.columns([1, 1.4])
 
     # ---- Active watches ----
     with col_left:
-        st.markdown('<h3>Watching now</h3>', unsafe_allow_html=True)
+        st.markdown('<h3>Watching for you</h3>', unsafe_allow_html=True)
         if not watches:
             st.markdown(
                 """<div class='empty'>
@@ -598,14 +691,14 @@ with tabs[0]:
                     else:
                         st.error(r)
 
-    # ---- Recent alerts ----
+    # ---- Reservations ----
     with col_right:
-        st.markdown('<h3>Recent alerts</h3>', unsafe_allow_html=True)
+        st.markdown('<h3>Your reservations</h3>', unsafe_allow_html=True)
         if not notifs:
             st.markdown(
                 """<div class='empty'>
-<div class='empty-title'>Nothing yet</div>
-<div class='empty-sub'>Alerts land here when a slot opens for one of your watches. Try a Demo Mode replay if you want to see one now.</div>
+<div class='empty-title'>No bookings yet</div>
+<div class='empty-sub'>Add a watch on the left. The moment a slot opens, we book it and the confirmation lands here (and in your inbox). Try Demo Mode if you want to see one now.</div>
 </div>""",
                 unsafe_allow_html=True,
             )
@@ -680,71 +773,62 @@ with tabs[1]:
 
 
 # ============================================================
-# SETTINGS — email + preferences
+# SETTINGS — account + taste
 # ============================================================
 with tabs[2]:
     st.markdown(
         '<div class="section-head">Settings</div>'
-        '<div class="section-sub">Set your email so we can ping you when a slot opens. Tell us your taste so the ranker knows what to surface.</div>',
+        '<div class="section-sub">Your account info and taste preferences. The ranker uses what you tell us here to decide which slots are worth your time.</div>',
         unsafe_allow_html=True,
     )
 
     p = st.session_state.prefs
-    st.markdown('<h3>Notifications</h3>', unsafe_allow_html=True)
-    email = st.text_input(
-        "Email address",
-        p.get("email", ""),
-        placeholder="you@example.com",
-        help="Required to send alerts. We don't share or sell.",
-    )
 
-    cols = st.columns([1, 1, 4])
-    with cols[0]:
-        save_clicked = st.button("Save email", type="primary", key="save-email")
-    with cols[1]:
-        test_clicked = st.button("Send test email", key="test-email")
-
-    if save_clicked:
-        new_prefs = {**p, "email": email.strip()}
-        r = api_put("/api/prefs", new_prefs)
-        if r.get("ok"):
-            st.session_state.prefs = new_prefs
-            st.success("Saved.")
-        else:
-            st.error(r)
-
-    if test_clicked:
-        if not email.strip():
-            st.warning("Enter an email first.")
-        else:
-            with st.spinner("Sending test email…"):
-                res = api_post("/api/test-email", {"to": email.strip()})
-            if res.get("ok"):
-                st.success(
-                    f"Sent via **{res.get('provider')}**. "
-                    f"Check {email}. (If it's the console fallback, "
-                    f"add a RESEND_API_KEY or GMAIL_APP_PASSWORD to .env.)"
-                )
-            else:
-                st.error(
-                    f"Send failed via **{res.get('provider')}**: {res.get('detail','')}. "
-                    f"See README for setup options."
-                )
-
+    # Account card
+    st.markdown('<h3>Account</h3>', unsafe_allow_html=True)
     st.markdown(
-        """<div style='font-size:12px;color:#6b6453;margin-top:6px;line-height:1.5'>
-Email setup options:<br/>
-&middot; <b>Resend</b> (recommended) — sign up free at resend.com → paste API key into <code>.env</code> as <code>RESEND_API_KEY</code>.<br/>
-&middot; <b>Gmail SMTP</b> — generate an App Password at <a href='https://myaccount.google.com/apppasswords' target='_blank'>myaccount.google.com/apppasswords</a> → set <code>GMAIL_USER</code> + <code>GMAIL_APP_PASSWORD</code>.<br/>
-&middot; If neither is set, alerts log to console (still in-app, just no email).
+        f"""<div class='r-card'>
+<div class='card-meta' style='margin-bottom:0'>Signed in as</div>
+<div class='r-card-name' style='font-size:22px;margin-top:2px'>{p.get('name', 'Guest')}</div>
+<div class='card-meta' style='margin-top:6px'>{p.get('email','')}</div>
 </div>""",
         unsafe_allow_html=True,
     )
 
+    cols = st.columns([1, 1, 4])
+    with cols[0]:
+        test_clicked = st.button("Send test email", key="test-email")
+    with cols[1]:
+        if st.button("Sign out", key="signout-tab"):
+            _sign_out()
+            st.rerun()
+
+    if test_clicked:
+        if not p.get("email", "").strip():
+            st.warning("No email on file.")
+        else:
+            with st.spinner("Sending test email…"):
+                res = api_post("/api/test-email", {"to": p["email"].strip()})
+            if res.get("ok"):
+                if res.get("provider") == "console":
+                    st.warning(
+                        "Console fallback fired (no email provider configured). "
+                        "Add RESEND_API_KEY or GMAIL_APP_PASSWORD to .env to deliver real mail."
+                    )
+                else:
+                    st.success(
+                        f"Sent via **{res.get('provider')}** → {p['email']}. "
+                        f"Check your inbox (and spam, if first-time)."
+                    )
+            else:
+                st.error(
+                    f"Send failed via **{res.get('provider')}**: {res.get('detail','')}"
+                )
+
     st.markdown('<div class="divider"></div>', unsafe_allow_html=True)
     st.markdown('<h3>Taste &amp; defaults</h3>', unsafe_allow_html=True)
+    st.caption("These bias the ranker — what cuisines and neighborhoods we surface first.")
 
-    name = st.text_input("Name", p.get("name", ""), placeholder="Your name")
     cuisines = st.text_input(
         "Cuisines you love",
         ", ".join(p.get("cuisines_loved", [])),
@@ -763,8 +847,6 @@ Email setup options:<br/>
     if st.button("Save preferences", type="primary", key="save-prefs"):
         new_prefs = {
             **p,
-            "name": name,
-            "email": email.strip(),
             "cuisines_loved": [c.strip() for c in cuisines.split(",") if c.strip()],
             "neighborhoods": [n.strip() for n in nbhds.split(",") if n.strip()],
             "default_party_size": int(party),
