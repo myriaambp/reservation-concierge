@@ -128,3 +128,91 @@ def send_email(
             return res
     # All providers failed or unconfigured — console fallback.
     return _send_console(to, subject, html, body)
+
+
+def _wrap_reservation_html(
+    *,
+    restaurant: str,
+    date_long: str,
+    time_str: str,
+    party_size: int,
+    table_type: str,
+    confirmation_code: str,
+) -> str:
+    """Restaurant-side confirmation email — mimics the format diners get from
+    Resy/OpenTable/Tock. Different style from the Tableau alert (lighter,
+    receipt-like, no editorial copy)."""
+    return f"""<!doctype html>
+<html><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#fafaf7;font-family:-apple-system,'Helvetica Neue',Arial,sans-serif;color:#111">
+  <div style="max-width:520px;margin:32px auto;background:#fff;border:1px solid #e7e5e0;border-radius:8px">
+    <div style="padding:24px 28px;border-bottom:1px solid #efece6">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.16em;color:#6b6b6b;margin-bottom:6px">Reservation Confirmed</div>
+      <div style="font-size:28px;font-weight:600;letter-spacing:-0.01em;color:#111">{restaurant}</div>
+    </div>
+    <div style="padding:22px 28px">
+      <table cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;color:#222">
+        <tr><td style="padding:6px 0;color:#6b6b6b;width:120px">Date</td><td style="padding:6px 0;font-weight:500">{date_long}</td></tr>
+        <tr><td style="padding:6px 0;color:#6b6b6b">Time</td><td style="padding:6px 0;font-weight:500">{time_str}</td></tr>
+        <tr><td style="padding:6px 0;color:#6b6b6b">Party</td><td style="padding:6px 0;font-weight:500">{party_size}</td></tr>
+        <tr><td style="padding:6px 0;color:#6b6b6b">Seating</td><td style="padding:6px 0;font-weight:500">{table_type}</td></tr>
+        <tr><td style="padding:6px 0;color:#6b6b6b">Confirmation</td><td style="padding:6px 0;font-family:'SF Mono',Menlo,monospace;font-size:13px">{confirmation_code}</td></tr>
+      </table>
+    </div>
+    <div style="padding:18px 28px;background:#fafaf7;border-top:1px solid #efece6;font-size:12px;color:#6b6b6b;line-height:1.5">
+      Booked through Tableau. Your card on file will be charged the standard cancellation fee if you no-show. To modify or cancel, reply to this email or open the Tableau app.
+    </div>
+  </div>
+</body></html>"""
+
+
+def send_reservation_confirmation(
+    *,
+    to: str,
+    restaurant: str,
+    date_long: str,
+    time_str: str,
+    party_size: int,
+    table_type: str,
+    confirmation_code: str,
+) -> EmailResult:
+    """Restaurant-style booking confirmation. Separate sender + format from the
+    Tableau alert so it reads like the platform-confirmation a diner would
+    normally receive (Resy/OpenTable). Best-effort, never raises.
+    """
+    if not to or "@" not in to:
+        return EmailResult(False, "skip", "no recipient email")
+
+    subject = f"Reservation confirmed — {restaurant}, {date_long} at {time_str}"
+    html = _wrap_reservation_html(
+        restaurant=restaurant,
+        date_long=date_long,
+        time_str=time_str,
+        party_size=party_size,
+        table_type=table_type,
+        confirmation_code=confirmation_code,
+    )
+    text = (
+        f"Reservation confirmed.\n\n"
+        f"Restaurant:   {restaurant}\n"
+        f"Date:         {date_long}\n"
+        f"Time:         {time_str}\n"
+        f"Party:        {party_size}\n"
+        f"Seating:      {table_type}\n"
+        f"Confirmation: {confirmation_code}\n\n"
+        f"Booked through Tableau."
+    )
+
+    # Use a different "from" so it visually feels like the restaurant/platform.
+    saved_from = os.environ.get("RESEND_FROM", "")
+    os.environ["RESEND_FROM"] = (
+        f"{restaurant} <reservations@onboarding.resend.dev>"
+    )
+    try:
+        for provider_fn in (_send_resend, _send_gmail_smtp):
+            res = provider_fn(to, subject, html, text)
+            if res.ok:
+                return res
+        return _send_console(to, subject, html, text)
+    finally:
+        os.environ["RESEND_FROM"] = saved_from
