@@ -183,9 +183,10 @@ def run_ranker(cases: list[dict]) -> list[Result]:
             model=settings.worker_model,
             system=RANKER_PROMPT,
             messages=[{"role": "user", "content": prompt_input}],
-            max_tokens=200,
+            max_tokens=400,
             agent_name="eval-ranker",
             temperature=0.3,
+            disable_thinking=True,  # match production ranker_node
         )
         text = resp.text
         passed, reason = _judge(text, case["judge_criteria"])
@@ -195,20 +196,42 @@ def run_ranker(cases: list[dict]) -> list[Result]:
 
 # ---------------- Suite 3: notifier ----------------
 
+def _enrich_notifier_slot(slot: dict) -> dict:
+    """Match what notifier_node sends in production: derived day/time fields
+    + a booking_url + booking_platform stand-in."""
+    from datetime import datetime as _dt
+    out = dict(slot)
+    try:
+        dt = _dt.fromisoformat(slot["datetime"])
+        out["day_short"] = dt.strftime("%a")
+        out["day_long"] = dt.strftime("%A %b %-d")
+        out["time_str"] = dt.strftime("%-I:%M%p").lower().replace(":00", "")
+    except Exception:
+        out["day_short"] = out["day_long"] = out["time_str"] = ""
+    out.setdefault("booking_platform", "tabletime")
+    out.setdefault(
+        "booking_url",
+        f"http://localhost:8000/fake-resy/eval?date={out.get('day_long','')}",
+    )
+    return out
+
+
 def run_notifier(cases: list[dict]) -> list[Result]:
     settings = get_settings()
     out: list[Result] = []
     for case in cases:
+        enriched = _enrich_notifier_slot(case["slot"])
         prompt_input = (
-            f"Slot: {json.dumps(case['slot'])}\nRationale: {case['rationale']}"
+            f"Slot: {json.dumps(enriched)}\nRationale: {case['rationale']}"
         )
         resp = chat(
             model=settings.worker_model,
             system=NOTIFIER_PROMPT,
             messages=[{"role": "user", "content": prompt_input}],
-            max_tokens=200,
+            max_tokens=512,
             agent_name="eval-notifier",
             temperature=0.2,
+            disable_thinking=True,  # match production notifier_node
         )
         text = _strip_code_fence(resp.text)
         # Programmatic check first: must be valid JSON with subject + body.
