@@ -95,4 +95,4 @@ A path to launch with one luxury-hotel concierge partner. We have the agent stac
 
 ---
 
-*Built for IEORE4576 (Agentic AI for Analytics), Columbia, Spring 2026. GitHub: <https://github.com/_USERNAME_/reservation-concierge>.*
+*Built by Myriam Bengoechea Pardo (`mb5500`) and Blanca Valera Caballero (`bv2358`) for IEORE4576 — Agentic AI for Analytics, Columbia, Spring 2026. GitHub: <https://github.com/myriaambp/reservation-concierge>.*

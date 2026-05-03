@@ -130,8 +130,8 @@ reservation-concierge/
 
 ## Team
 
-- Myriam Bengoechea Pardo
-- _Teammate_
+- Myriam Bengoechea Pardo (`mb5500`)
+- Blanca Valera Caballero (`bv2358`)
 
 ## License
 

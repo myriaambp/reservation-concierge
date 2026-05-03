@@ -4,7 +4,8 @@ The panel has read the one-pager. Don't repeat it. Show product, then ask.
 
 ## Slide 1 — Title (5s)
 **Tableau.** *The Bloomberg Terminal for the 600 restaurants where access is the product.*
-Live demo URL on screen. Names + course.
+Live demo URL on screen.
+Myriam Bengoechea Pardo (`mb5500`) · Blanca Valera Caballero (`bv2358`) — IEORE4576, Spring 2026.
 
 ## Slide 2 — The user, in one breath (10s)
 "Priya. 31. VC business development. Spent four hours last month refreshing Resy and ate at her second-choice restaurant on her own birthday."
