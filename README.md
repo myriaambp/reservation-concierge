@@ -5,9 +5,21 @@
 A multi-agent system that monitors hard-to-book NYC restaurants on your behalf, explains *why* a slot fits when it opens, and books with one tap.
 
 - **Live demo:** [concierge-web-eheg65qzwa-uc.a.run.app](https://concierge-web-eheg65qzwa-uc.a.run.app) (API: [concierge-api-…](https://concierge-api-eheg65qzwa-uc.a.run.app))
-- **Business one-pager:** [docs/one-pager.md](docs/one-pager.md)
+- **Business one-pager:** [docs/one-pager.pdf](docs/one-pager.pdf) · source: [one-pager.md](docs/one-pager.md)
 - **Architecture diagrams:** [chat graph](docs/chat_graph.png) · [tick graph](docs/tick_graph.png)
 - **Course:** IEORE4576 Agentic AI for Analytics, Columbia, Spring 2026
+
+## For graders
+
+| Rubric category (8 pts each) | Evidence |
+|---|---|
+| **Deployed and working** | Live URL above; `bash infra/deploy.sh` is idempotent and ships both Cloud Run services + Cloud Scheduler tick |
+| **Business case** | [docs/one-pager.pdf](docs/one-pager.pdf) — 3 pages: persona (Priya), problem, $1.30 unit-economics with $19 / 93% margin, 4 named risks, platform-partnership path forward |
+| **Class concepts + complexity** | 6 concepts cited in the table below + 2 bonuses (constrained decoding, browser automation). Eval suite passes **19/20 (95%)** — see `backend/evals/output/latest.json` |
+| **Technical choices justified** | "Tech stack & why" table below maps each architectural choice to user/problem/economics. Long-form version on page 3 of the one-pager. |
+| **Presentation + Q&A** | [docs/pitch-deck-outline.md](docs/pitch-deck-outline.md) — 3-min outline + 10 anticipated Q&A answers |
+
+**Total deliverables on this URL:** code (59 files), one-pager PDF, pitch outline, two graph diagrams, eval results, and the live deployment.
 
 ---
 

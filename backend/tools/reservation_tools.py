@@ -1,12 +1,14 @@
-"""Anthropic tool surface — the **tool calling** class concept artifact.
+"""Tool surface — the **tool calling** class concept artifact.
 
 Each tool is:
 1. A Pydantic input model (the **constrained decoding** class concept artifact;
-   Anthropic feeds the JSON Schema to the model so outputs are guaranteed-shape).
+   the JSON Schema is fed to the LLM as a `FunctionDeclaration`, so outputs
+   are guaranteed-shape).
 2. A pure Python implementation that calls into providers / store / RAG.
 
-Tools are exposed to LangGraph via `ANTHROPIC_TOOLS` (schemas) and
-`TOOL_DISPATCH` (name → callable). Agents reference these by name.
+Tools are exposed to LangGraph via `TOOL_SCHEMAS` (Anthropic-style portable
+schema; converted to Gemini `FunctionDeclaration` in `backend.llm.client`)
+and `TOOL_DISPATCH` (name → callable). Agents reference these by name.
 """
 from __future__ import annotations
 
@@ -278,7 +280,7 @@ def _schema(model: type[BaseModel]) -> dict:
     }
 
 
-ANTHROPIC_TOOLS: list[dict] = [
+TOOL_SCHEMAS: list[dict] = [
     {
         "name": "search_restaurants",
         "description": "Search the curated NYC hard-to-book restaurant catalog. Use for ambiguous user queries before adding a watch.",

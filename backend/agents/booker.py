@@ -21,9 +21,9 @@ from backend.agents.prompts import BOOKER_PROMPT
 from backend.config import get_settings
 from backend.llm.client import chat
 from backend.memory.state import AgentState
-from backend.tools.reservation_tools import ANTHROPIC_TOOLS, call_tool
+from backend.tools.reservation_tools import TOOL_SCHEMAS, call_tool
 
-BOOKER_TOOLS = [t for t in ANTHROPIC_TOOLS if t["name"] in {"book_slot", "record_outcome"}]
+BOOKER_TOOLS = [t for t in TOOL_SCHEMAS if t["name"] in {"book_slot", "record_outcome"}]
 
 
 def booker_node(state: AgentState) -> dict:

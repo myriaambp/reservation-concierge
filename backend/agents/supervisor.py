@@ -2,7 +2,7 @@
 via tool use, returns a final natural-language reply.
 
 Class concepts on display:
-- Tool calling: bound to the full ANTHROPIC_TOOLS schema (Anthropic-format,
+- Tool calling: bound to TOOL_SCHEMAS (portable JSON-Schema format,
   converted to Gemini FunctionDeclarations inside backend.llm.client).
 - Multi-agent orchestration: conditionally routes to BookerAgent when the user
   is confirming a booking (HITL pivot).
@@ -17,11 +17,11 @@ from backend.agents.prompts import SUPERVISOR_PROMPT
 from backend.config import get_settings
 from backend.llm.client import chat
 from backend.memory.state import AgentState
-from backend.tools.reservation_tools import ANTHROPIC_TOOLS, call_tool
+from backend.tools.reservation_tools import TOOL_SCHEMAS, call_tool
 
 # Tools the Supervisor can invoke directly. Booker has its own narrower set.
 SUPERVISOR_TOOLS = [
-    t for t in ANTHROPIC_TOOLS
+    t for t in TOOL_SCHEMAS
     if t["name"] in {
         "search_restaurants",
         "get_user_prefs",

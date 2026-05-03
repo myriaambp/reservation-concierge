@@ -6,8 +6,9 @@ Three eval suites, all run in one script:
                      matches a per-case judge_criteria?
   3. notifier_cases: did the notifier emit valid JSON matching the schema?
 
-Suites 2 + 3 use LLM-as-judge (Opus). Suite 1 uses programmatic checks since
-the answer is a tool name + key args, no semantic interpretation needed.
+Suites 2 + 3 use LLM-as-judge (Gemini Flash, see config). Suite 1 uses
+programmatic checks since the answer is a tool name + key args, no
+semantic interpretation needed.
 
 Run:
     python -m backend.evals.run_evals [--cases-only intent|ranker|notifier]
@@ -23,7 +24,7 @@ from pathlib import Path
 from backend.agents.prompts import NOTIFIER_PROMPT, RANKER_PROMPT, SUPERVISOR_PROMPT
 from backend.config import get_settings
 from backend.llm.client import chat
-from backend.tools.reservation_tools import ANTHROPIC_TOOLS
+from backend.tools.reservation_tools import TOOL_SCHEMAS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _CASES_PATH = Path(__file__).parent / "cases.json"
@@ -112,7 +113,7 @@ def run_intent(cases: list[dict]) -> list[Result]:
     settings = get_settings()
     out: list[Result] = []
     for case in cases:
-        # Single Claude call with tools bound; expect a tool_use block.
+        # Single LLM call with tools bound; expect a tool_use block.
         resp = chat(
             model=settings.supervisor_model,
             system=SUPERVISOR_PROMPT,
@@ -122,7 +123,7 @@ def run_intent(cases: list[dict]) -> list[Result]:
                     "content": f"[user_id=eval-user] {case['input']}",
                 }
             ],
-            tools=ANTHROPIC_TOOLS,
+            tools=TOOL_SCHEMAS,
             max_tokens=2048,
             agent_name="eval-supervisor",
             temperature=0.0,
