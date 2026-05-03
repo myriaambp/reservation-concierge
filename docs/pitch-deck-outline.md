@@ -25,11 +25,11 @@ Myriam Bengoechea Pardo (`mb5500`) · Blanca Valera Caballero (`bv2358`) — IEO
 - "We're not building a marketplace. We're building the intelligence layer on top of one."
 
 ## Slide 5 — Where it breaks + the pivot (30s)
-"Three things break us. Resy can C&D us — that's why our demo runs on mock data. Polling can get cheaper to attack — we're betting on judgment, not raw frequency. Cold-start is real."
-"That's why our path forward is luxury hotel concierge desks. $5K/mo per property, 50 properties, $3M ARR with one BD hire. Hotels have the behavioral data and the platform relationships. The subscription is the wedge."
+"Three things break us. Without sanctioned API access we never book on the real platforms — that's why our demo runs against a sandbox we own. Polling can get cheaper to attack. Cold-start is real."
+"That's why our path forward is partnership with Resy, OpenTable, or Tock. The architecture already speaks their interface — we flip one env var when a contract exists. Two structures we'd take: $2–4 per-booking referral, or license the product as Resy Concierge. Appointment Trader did $80M of unauthorized cancellation arbitrage last year. We turn that gray-market demand into legitimate platform revenue."
 
 ## Slide 6 — The ask (10s)
-"90 days, one hospitality partner. Then we open consumer."
+"A first conversation with one of the three platforms. We have the agent stack and the deal structure. We need API access."
 
 ---
 
@@ -48,7 +48,7 @@ Myriam Bengoechea Pardo (`mb5500`) · Blanca Valera Caballero (`bv2358`) — IEO
    We chose Gemini 2.5 Flash on Vertex because it bills against our GCP credits (zero out-of-pocket while we iterate) and is ~10× cheaper than Sonnet per token. Our LLM client (`backend/llm/client.py`) is provider-agnostic — `LLMResponse` unifies the shape and switching to Anthropic, OpenAI, or self-hosted only changes the inside of `chat()`. A 3× Vertex hike cuts margin from 93% to ~80%; we'd absorb it.
 
 5. **"How do you get the first 1,000 users?"**
-   Concierge desks at luxury hotels become channel partners. Each one already has a list of 5,000 affluent guests. Plus a referral mechanic — friends-eating-together is a built-in viral loop.
+   NYC food media — Eater, Infatuation, New Forkers, Resy's own newsletter — is hungry for the "how to actually book the unbookable" story. Plus a referral mechanic (you and the friends you eat with each get a watch). Once we land a platform partnership, the platform's own user base becomes the funnel.
 
 6. **"Why mock data in the demo?"**
    Because we built this to be honest. The demo proves the agent works. The legal posture is: we don't run real polling without permission. Investors should reward founders who name the regulatory question directly.
@@ -59,8 +59,8 @@ Myriam Bengoechea Pardo (`mb5500`) · Blanca Valera Caballero (`bv2358`) — IEO
 8. **"Why LangGraph instead of one big prompt?"**
    Because polling is most of the cost, and a single-prompt agent re-parses intent every tick. By splitting Scout into a code-only diff with a narrow LLM escalation, we drop COGS 4×.
 
-9. **"What's the moat once you have B2B distribution?"**
-   The Ranker. The longer we've watched Priya, the better our explanation of *why a slot fits* — and that's the user-facing magic. Switching costs scale with the ranker's history.
+9. **"What's the moat once you have a platform partnership?"**
+   The Ranker — the longer we've watched a user, the better our 'why this slot fits' explanation, and that's the user-facing magic. Plus the partnership itself is the moat: once Resy is incentive-aligned with us they don't sign deal #2 with our competitor.
 
 10. **"Why are *you* the team to build this?"**
     [Your answer — leverage real strengths. If you're a Columbia IEOR student with a finance background, the unit-economics story is yours; if you're a former hospitality operator, the channel partnerships are yours.]

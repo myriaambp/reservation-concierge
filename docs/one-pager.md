@@ -68,14 +68,19 @@ LLM cost is **$0.88 / user-month** (~5% of revenue) because we run on Gemini 2.5
 
 ### Where it breaks (named honestly)
 
-1. **Resy / OpenTable cease-and-desist.** Most likely outcome of any unauthorized scraping. **Mitigation** built into the architecture: every provider call sits behind a `ReservationProvider` interface; the demo runs on a `MockResyProvider` and the agent books against a Tableau-controlled sandbox (`TableTime`). The path to real bookings is partnership, not adversarial scraping. We have a B2B pivot pre-built (below).
+1. **No partnership = no real bookings.** Without sanctioned API access, we can never legally book on the actual platforms. The architecture is built to accept partnership the moment one exists — every provider call sits behind a `ReservationProvider` interface; today the agent books against a Tableau-controlled sandbox (`TableTime`); the day a contract is signed we flip `USE_FAKE_RESY=false` and the agent code is unchanged. **Mitigation:** the path forward (below) is exactly this conversation.
 2. **Polling cadence pressure.** If a competitor offers sub-30-second polling, costs scale 4× and margin compresses to ~70%. Still profitable, but the moat shifts from raw frequency to ranker quality.
-3. **Cold-start.** No users → no behavioral signal → the Ranker reduces to defaults. We mitigate by launching with a partner concierge desk so the Ranker has multi-user behavioral data on Day 1.
+3. **Cold-start.** No users → no behavioral signal → the Ranker reduces to defaults. Solved by an early platform partnership: real availability data and real diners ranking real slots from day 1.
 4. **Vertex / Gemini price moves or quota cuts.** The LLM client wrapper (`backend/llm/client.py`) is provider-agnostic — `LLMResponse` is a unified shape and switching to Anthropic, OpenAI, or self-hosted only changes the implementation of `chat()`. A 3× Vertex hike cuts margin to ~80%; we'd absorb it.
 
-### Path forward
+### Path forward — partner, don't scrape
 
-White-label API → luxury hotel concierge desks (Aman, 1 Hotels, Faena, Mark Hotel). Tested estimate: **$5,000/mo per property × 50 properties → $3M ARR with one BD hire.** This pivot solves both cold-start (hotels supply behavioral data) and ToS risk (hotels have direct restaurant relationships). The consumer subscription is the wedge; concierge B2B is the business.
+The product becomes scalable the moment we have **first-party API access from Resy / OpenTable / Tock**. The architecture is already built for this — see `backend/booking/deep_links.py` and the `ReservationProvider` interface — and the demo proves the agent works end-to-end against that contract. We'd take either of two deal structures:
+
+1. **Per-booking referral fee** ($2–4 per completed reservation, paid to the platform). At ~50K NYC target users × ~6 special-occasion bookings/year × $3 → $9M GMV, ~$1M platform-share. Our $19/mo subscription holds at 90%+ margin and the platform captures volume from a tier of demand they don't currently serve.
+2. **License or acquihire**. Tableau becomes "Resy Concierge" — the consumer-side premium tier the platform won't build in-house because it complicates their restaurant relationships. We don't have that conflict; we sit on top of their inventory.
+
+**Why the platforms say yes.** Appointment Trader moved $80M of unauthorized cancellation arbitrage last year — that's the demand we capture cleanly. We drive incremental bookings into hard-to-book slots that would otherwise expire, share behavioral signal back to the platform, and convert the scraper arms race into a partner relationship. The pitch in one line: *let us be the legitimate, software-first version of the gray market that's already eating your cancellation flow.*
 
 ---
 
@@ -96,7 +101,7 @@ White-label API → luxury hotel concierge desks (Aman, 1 Hotels, Faena, Mark Ho
 
 ## What we're asking for
 
-A path to launch with one luxury-hotel concierge partner. We have the agent stack, the pricing model, and a defensible architectural answer to the regulatory question. We need 90 days and a single hospitality-side relationship to validate B2B pricing before opening the consumer flywheel.
+**A first conversation with Resy, OpenTable, or Tock about API access.** We have the agent stack, the deal structure, and an architecture that already speaks their interface. What we need from a partner platform is sanctioned reads on availability and writes on bookings; what we offer back is incremental volume into their hardest-to-fill slots, behavioral signal on demand they don't see today, and a clean alternative to the unauthorized cancellation arbitrage that already moves $80M+ a year off-platform.
 
 ---
 
