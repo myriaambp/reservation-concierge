@@ -32,6 +32,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Sandboxed fake reservation site the agent books against during demos.
+from backend.api.fake_resy import router as fake_resy_router  # noqa: E402
+app.include_router(fake_resy_router)
+
 
 # In-memory token store for HITL booking flow. Production: redis or short-TTL
 # Firestore docs.
@@ -215,6 +219,73 @@ def list_notifications(user_id: str, limit: int = 20) -> dict:
 
 
 # ---------- demo controls ----------
+
+@app.post("/api/demo/auto-book/{fixture_id}")
+def demo_auto_book(fixture_id: str, user_id: str = "demo-user") -> dict:
+    """The full agentic booking flow against our TableTime sandbox via
+    Playwright. Opens a headed Chromium window, navigates to the booking
+    page, clicks an available time, fills in the form with the user's
+    name + email, submits, and captures the confirmation page.
+
+    On success, also fires a confirmation email to the user. Local-dev only
+    — Cloud Run can't pop browsers."""
+    from backend.booking.browser_booker import book_via_browser
+    from backend.providers.base import get_provider
+
+    provider = get_provider()
+    slot = provider.replay_fixture(fixture_id)
+    rest = provider.get_restaurant(slot.restaurant_id)
+    rest_name = rest.name if rest else slot.restaurant_id
+
+    # Pull the user's account info to fill the booking form.
+    user = get_store().get_user(user_id)
+    name = user.name or "Priya Shah"
+    email = user.email or ""
+
+    result = book_via_browser(
+        slot.restaurant_id,
+        dt=slot.datetime,
+        party_size=slot.party_size,
+        name_on_reservation=name,
+        email=email or "guest@tableau.app",
+    )
+    result["restaurant_name"] = rest_name
+    result["datetime"] = slot.datetime.isoformat()
+    result["party_size"] = slot.party_size
+
+    # On success, fire a confirmation notification + email.
+    if result.get("ok") and result.get("confirmation_code"):
+        from datetime import datetime as _dt
+        try:
+            day_long = slot.datetime.strftime("%A, %B %-d, %Y")
+            time_str = slot.datetime.strftime("%-I:%M %p")
+        except Exception:
+            day_long = slot.datetime.isoformat()
+            time_str = ""
+
+        subject = f"Booked: {rest_name} — {time_str} {slot.datetime.strftime('%a')}"
+        body = (
+            f"The agent booked you a {slot.party_size}-top at {rest_name} on "
+            f"{day_long} at {time_str}. Confirmation `{result['confirmation_code']}`. "
+            f"Tap the button to view your reservation."
+        )
+        confirmation_url = result.get("confirmation_url") or ""
+        call_tool(
+            "send_notification",
+            {
+                "user_id": user_id,
+                "channel": "in_app",
+                "subject": subject,
+                "body": body,
+                "slot_id": slot.id,
+                "booking_url": confirmation_url,
+                "booking_platform": result.get("platform", "tabletime"),
+            },
+        )
+        result["notification_sent"] = True
+
+    return result
+
 
 @app.post("/api/demo/replay/{fixture_id}")
 def demo_replay(fixture_id: str, user_id: str = "demo-user") -> dict:

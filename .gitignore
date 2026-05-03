@@ -42,6 +42,7 @@ logs/
 # Local runtime data
 .local_store.json
 seed_data/embeddings.json
+frontend/static/screenshots/
 
 # Eval outputs
 backend/evals/output/

@@ -902,7 +902,7 @@ if DEMO_MODE:
     with tabs[3]:
         st.markdown(
             '<div class="section-head">Demo Mode</div>'
-            '<div class="section-sub">Simulates a slot opening for a curated restaurant. Runs the full Ranker → Auto-Booker → Notifier path: the agent confirms the booking on your behalf and emails you the confirmation. </div>',
+            '<div class="section-sub">Two flows. <b>Replay slot</b> runs the full agent pipeline (Ranker → Auto-Booker → Notifier) and emails you a Resy deep-link. <b>Auto-book on Resy</b> opens a real Chromium window and watches the agent navigate Resy live — all the way up to the submit gate. Use the second one on stage; it&rsquo;s the wow factor.</div>',
             unsafe_allow_html=True,
         )
 
@@ -927,8 +927,23 @@ if DEMO_MODE:
 </div>""",
                     unsafe_allow_html=True,
                 )
-                if st.button(f"▶ Replay slot opening", key=fid, use_container_width=True):
-                    with st.spinner(f"Ranker → deep-link → notifier…"):
+                btn_cols = st.columns(2)
+                with btn_cols[0]:
+                    replay = st.button(
+                        "▶ Replay slot",
+                        key=f"replay-{fid}",
+                        use_container_width=True,
+                    )
+                with btn_cols[1]:
+                    auto_book = st.button(
+                        "🤖 Auto-book on Resy",
+                        key=f"autobook-{fid}",
+                        use_container_width=True,
+                        type="primary",
+                    )
+
+                if replay:
+                    with st.spinner("Ranker → deep-link → notifier…"):
                         r = api_post(f"/api/demo/replay/{fid}", {}, user_id=USER_ID)
                     if "sent" in r:
                         sent = r["sent"]
@@ -942,12 +957,43 @@ if DEMO_MODE:
                             st.success(
                                 f"**{n['subject']}**\n\n"
                                 f"{n['body']}\n\n"
-                                f"{link_md} · email sent to your inbox · "
-                                f"**Home** tab also shows it."
+                                f"{link_md} · email sent · check **Home** tab."
                             )
                         elif sent:
                             st.info(f"Notified: {sent[0]['subject']}")
                         else:
-                            st.info("Notifier ran but emitted nothing (check logs).")
+                            st.info("Notifier ran but emitted nothing.")
                     else:
                         st.error(r)
+
+                if auto_book:
+                    with st.spinner("Opening Chrome and driving Resy live…"):
+                        r = api_post(f"/api/demo/auto-book/{fid}", {}, user_id=USER_ID)
+                    if r.get("ok"):
+                        st.success(
+                            f"**Agent walked Resy** for {r.get('restaurant_name', '')} "
+                            f"(target time: {r.get('target_time', '?')}, "
+                            f"clicked: {r.get('clicked_time', False)})"
+                        )
+                        # Show the steps
+                        with st.expander("Agent steps", expanded=False):
+                            for step in r.get("steps", []):
+                                st.write(f"· {step}")
+                        # Show the screenshots
+                        st.markdown("##### Screenshots")
+                        shot_cols = st.columns(min(len(r.get("screenshots", [])), 4) or 1)
+                        repo_root = Path(__file__).resolve().parents[1]
+                        for j, rel in enumerate(r.get("screenshots", [])):
+                            p = repo_root / rel
+                            if p.exists():
+                                with shot_cols[j % len(shot_cols)]:
+                                    st.image(
+                                        str(p),
+                                        caption=p.stem,
+                                        use_container_width=True,
+                                    )
+                    else:
+                        st.error(
+                            f"Browser run failed: {r.get('error','unknown')}\n\n"
+                            f"Steps: {r.get('steps', [])}"
+                        )

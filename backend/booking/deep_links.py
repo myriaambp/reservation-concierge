@@ -1,12 +1,17 @@
-"""Resy / OpenTable deep links — the legal-and-actually-works booking primitive.
+"""Booking deep links.
 
-A deep link pre-fills a Resy URL with date, party size, and (where supported)
-time. The user taps the link, lands on the real Resy page with the slot
-already loaded, and confirms with a single tap. We do 99% of the work; the
-user does the final tap (which doubles as the consent gate Resy's ToS expects).
+Two modes, switched by `USE_FAKE_RESY` env (default true for demo):
+  - Fake mode: URL points at our sandboxed `/fake-resy/...` site. The agent
+    can complete the entire flow end-to-end — click a time, submit the form,
+    receive a confirmation page — without touching any real platform.
+  - Real mode: URL is a real Resy / OpenTable / Tock deep link. Agent stops
+    at the consent gate; user taps to confirm on the real platform.
+
+The agent code doesn't branch on this — same plumbing, different URL.
 """
 from __future__ import annotations
 
+import os
 from datetime import datetime
 from urllib.parse import urlencode
 
@@ -52,6 +57,14 @@ _NON_RESY: dict[str, dict] = {
 }
 
 
+def _use_fake() -> bool:
+    return os.getenv("USE_FAKE_RESY", "true").lower() != "false"
+
+
+def _fake_base() -> str:
+    return os.getenv("FAKE_RESY_BASE", "http://localhost:8000")
+
+
 def build_booking_url(
     restaurant_id: str,
     *,
@@ -62,9 +75,17 @@ def build_booking_url(
 
     Keys:
       url: str | None — the deep link to tap, if any
-      platform: str — "resy" | "tock" | "opentable" | "phone" | "walk-in"
+      platform: str — "tabletime" (fake) | "resy" | "tock" | "opentable" | "phone"
       note: str | None — explanation when no URL is available
     """
+    if _use_fake():
+        params = urlencode({"date": dt.date().isoformat(), "seats": party_size})
+        return {
+            "url": f"{_fake_base()}/fake-resy/{restaurant_id}?{params}",
+            "platform": "tabletime",
+            "note": None,
+        }
+
     slug = _RESY_SLUGS.get(restaurant_id)
     if slug:
         params = urlencode(
@@ -90,8 +111,7 @@ def build_booking_url(
             "note": info["reason"],
         }
 
-    # Default: assume Resy with id-as-slug. Worst case the link 404s and the
-    # user can search; better than no handoff.
+    # Default: assume Resy with id-as-slug.
     params = urlencode({"date": dt.date().isoformat(), "seats": party_size})
     return {
         "url": f"https://resy.com/cities/new-york-ny/venues/{restaurant_id}?{params}",
