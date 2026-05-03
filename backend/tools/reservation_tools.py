@@ -75,6 +75,11 @@ class SendNotificationInput(BaseModel):
     subject: str
     body: str
     slot_id: str | None = None
+    booking_url: str | None = Field(
+        default=None,
+        description="Deep link the user taps to confirm on Resy/Tock/OpenTable.",
+    )
+    booking_platform: str | None = None
 
 
 class RecordOutcomeInput(BaseModel):
@@ -204,6 +209,8 @@ def send_notification(args: dict) -> dict:
         "subject": inp.subject,
         "body": inp.body,
         "slot_id": inp.slot_id,
+        "booking_url": inp.booking_url,
+        "booking_platform": inp.booking_platform,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     store = get_store()
@@ -219,7 +226,17 @@ def send_notification(args: dict) -> dict:
 
     if user_email and "@" in user_email:
         from backend.notifications.email import send_email
-        result = send_email(user_email, inp.subject, inp.body)
+        cta = (
+            f"Confirm on {inp.booking_platform.capitalize()} →"
+            if inp.booking_platform else "Confirm reservation →"
+        )
+        result = send_email(
+            user_email,
+            inp.subject,
+            inp.body,
+            slot_url=inp.booking_url,
+            cta_label=cta,
+        )
         email_status = f"{result.provider}:{'ok' if result.ok else 'fail'}"
         payload["email_status"] = email_status
         payload["email_to"] = user_email

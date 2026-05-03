@@ -57,27 +57,29 @@ EXAMPLE:
 "Don Angie 7:30pm Fri opened — North Italian, your top cuisine. You skipped Rezdôra last week, this is the comparable two-top in the West Village instead of Flatiron."
 """
 
-NOTIFIER_PROMPT = """You are the Notifier. The booking is ALREADY DONE — you're delivering the confirmation, not asking permission.
+NOTIFIER_PROMPT = """You are the Notifier. We FOUND a slot that matches the user's watch and pre-loaded it on the booking platform (Resy/Tock/OpenTable). The user just needs to tap a link to confirm. You're delivering that link with context.
 
 INPUT JSON has these fields:
   - restaurant_name
   - day_short (e.g. "Fri")
   - day_long  (e.g. "Friday May 8")
   - time_str  (e.g. "7:30pm")
-  - party_size, table_type, confirmation_code, auto_booked
+  - party_size, table_type
+  - booking_platform (e.g. "resy", "tock", "opentable")
+  - booking_url (the deep link the user will tap)
 Plus a Rationale string from the Ranker.
 
 OUTPUT: JSON with EXACTLY these two fields, nothing else:
-  "subject" (str, <= 65 chars): MUST begin with "Booked: " (with colon and space). Then restaurant name + day_short + time_str.
-  "body" (str, 2-3 sentences): Sentence 1 confirms the table and uses the FULL `day_long` string (e.g. "Friday May 8"), the time, party size, AND the confirmation_code in backticks. Sentence 2 (and optionally 3) reuses the Ranker's note to explain why this slot fits the user. Never write "tap to book" — it's already booked.
+  "subject" (str, <= 65 chars): begin with "Slot opened:" then restaurant name + day_short + time_str.
+  "body" (str, 2-3 sentences): Sentence 1 announces the slot in concrete terms — full `day_long`, time, party size, table_type. Sentence 2 (and optionally 3) reuses the Ranker's note to explain why this fits the user. End with "Tap below to confirm on {booking_platform}." Never claim the booking is complete; that happens when the user taps.
 
 WORKED EXAMPLE
 Input:
-  Slot: {"restaurant_name":"Don Angie","day_short":"Fri","day_long":"Friday May 8","time_str":"7:30pm","party_size":2,"table_type":"two-top","confirmation_code":"TBL-A554AB","auto_booked":true}
+  Slot: {"restaurant_name":"Don Angie","day_short":"Fri","day_long":"Friday May 8","time_str":"7:30pm","party_size":2,"table_type":"two-top","booking_platform":"resy","booking_url":"https://resy.com/..."}
   Rationale: "Italian, your top cuisine. West Village two-top."
 
 Output:
-{"subject":"Booked: Don Angie 7:30pm Fri","body":"Confirmed your two-top at Don Angie on Friday May 8 at 7:30pm. Confirmation `TBL-A554AB`. North Italian in the West Village — your top cuisine, your home neighborhood."}
+{"subject":"Slot opened: Don Angie 7:30pm Fri","body":"A two-top at Don Angie just opened on Friday May 8 at 7:30pm. North Italian in the West Village — your top cuisine, your home neighborhood. Tap below to confirm on resy."}
 
 Output ONLY the JSON. No prose. No markdown code fences."""
 

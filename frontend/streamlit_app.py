@@ -603,17 +603,16 @@ with tabs[0]:
     watches = api_get(f"/api/watches/{USER_ID}").get("watches", []) or []
     notifs = api_get(f"/api/notifications/{USER_ID}").get("notifications", []) or []
 
-    # Active = watches still in active state. Booked = confirmed reservations
-    # (notifications that came back with a confirmation_code in the body).
+    # Watching = active polling. Pending = slots found, awaiting user tap.
     n_watches = len(watches)
-    n_booked = sum(1 for n in notifs if "confirmation" in (n.get("body", "") + n.get("subject", "")).lower())
+    n_pending = sum(1 for n in notifs if n.get("booking_url"))
     n_alerts = len(notifs)
 
     st.markdown(
         f"""<div class='stat-row'>
   <div class='stat'><div class='stat-label'>Watching now</div><div class='stat-value'>{n_watches}</div><div class='stat-trend'>{'polling every 2 min' if n_watches else 'add one to start'}</div></div>
-  <div class='stat'><div class='stat-label'>Tables secured</div><div class='stat-value'>{n_booked}</div><div class='stat-trend'>{'auto-booked on your behalf' if n_booked else 'when a slot matches'}</div></div>
-  <div class='stat'><div class='stat-label'>Recent alerts</div><div class='stat-value'>{n_alerts}</div><div class='stat-trend'>across active watches</div></div>
+  <div class='stat'><div class='stat-label'>Slots found</div><div class='stat-value'>{n_pending}</div><div class='stat-trend'>{'awaiting your tap to confirm' if n_pending else 'when a slot opens'}</div></div>
+  <div class='stat'><div class='stat-label'>Total alerts</div><div class='stat-value'>{n_alerts}</div><div class='stat-trend'>across active watches</div></div>
 </div>""",
         unsafe_allow_html=True,
     )
@@ -706,22 +705,37 @@ with tabs[0]:
             for n in notifs[:5]:
                 created = n.get("created_at", "")[:16].replace("T", " ")
                 subject = n.get("subject", "")
-                booked_chip = ""
-                if "booked" in subject.lower():
-                    booked_chip = "<span class='chip chip-dark'>confirmed</span>"
+                platform = (n.get("booking_platform") or "").lower()
+                url = n.get("booking_url")
+
+                pending_chip = (
+                    "<span class='chip chip-gold'>pending confirm</span>"
+                    if url
+                    else "<span class='chip chip-dark'>found</span>"
+                )
                 email_tag = ""
                 if n.get("email_status", "").endswith(":ok"):
                     email_tag = (
-                        f"<span class='chip chip-gold'>emailed via "
+                        f"<span class='chip'>emailed via "
                         f"{n['email_status'].split(':')[0]}</span>"
                     )
+                cta_html = (
+                    f'<a href="{url}" target="_blank" '
+                    f'style="display:inline-block;background:#1a1a1a;color:#f5f1e8;'
+                    f'padding:10px 20px;border-radius:6px;text-decoration:none;'
+                    f'font-size:13px;font-weight:600;letter-spacing:0.02em;'
+                    f'margin-top:12px">'
+                    f'Confirm on {platform.capitalize() or "platform"} →</a>'
+                    if url else ""
+                )
                 st.markdown(
                     f"""<div class='r-card'>
 <div class='r-card-name' style='font-size:20px'>{subject}</div>
 <div class='r-card-meta'>{created}</div>
 <div class='r-card-body'>{n.get('body','')}</div>
-<div class='r-card-footer'>
-  <span>{booked_chip} {email_tag}</span>
+{cta_html}
+<div class='r-card-footer' style='margin-top:14px'>
+  <span>{pending_chip} {email_tag}</span>
   <span></span>
 </div>
 </div>""",
@@ -863,24 +877,19 @@ with tabs[2]:
     st.markdown(
         """<div style='font-size:14px;line-height:1.6;color:#2d1810;max-width:680px'>
 
-<b>Today, in this demo:</b> Tableau runs against a <code>MockResyProvider</code> with curated NYC restaurants. No live reservation platform is touched. The agent goes through the full pipeline — find slot, rank fit, book, notify — but the booking only writes to our own database. This keeps us out of any platform's terms of service while we prove out the agent.
+<b>Today:</b> when our scout finds a matching slot, the auto-booker generates a <b>Resy deep link</b> pre-filled with your restaurant, date, and party size. We email and in-app deliver that link as a single tap-to-confirm CTA. You land on Resy itself, with the slot loaded — one tap to lock it in. Resy emails you the actual confirmation directly.
 
 <br/><br/>
 
-<b>In production, three real-world paths, in order of credibility:</b>
-
-<br/><br/>
-<b>1. B2B partnership (the play).</b> Luxury hotel concierge desks (Aman, 1 Hotels, Faena) pay for a white-labeled API. Hotels already have direct relationships with restaurants — they place the booking on the guest's behalf through channels they're authorized to use. We're the intelligence layer; they're the rails.
-
-<br/><br/>
-<b>2. Concierge-in-the-loop.</b> When an alert fires for a paid user, a human concierge at Tableau makes the booking through their own personal Resy account — exactly how high-end concierge services work today. Margin is thinner but no platform fights us.
-
-<br/><br/>
-<b>3. Sanctioned API.</b> The architecture has a <code>ReservationProvider</code> interface with a <code>LiveResyProvider</code> stub that's never enabled. The day a partnership exists, we flip the flag. We never reverse-engineer a public API.
+<b>Why this design</b> (and not full automation): browser-automating Resy violates their ToS and gets accounts banned. Deep links are a sanctioned use of their URL surface — Resy in fact wants the traffic. The agent does ~99% of the work (find, rank, link, deliver); your tap is the legally-required consent that doubles as bot-defense for the platform.
 
 <br/><br/>
 
-The HITL gate (you have to opt in to a watch with a date, time, and party size) means we never auto-book anything you didn't ask us to. Consent is given at watch creation, not at the moment of booking.
+<b>Restaurants not on Resy</b> get platform-specific handling: Tock for Atomix / Kjun, OpenTable for Per Se, walk-in instructions for Lucali, no-go warning for Rao's. See <code>backend/booking/deep_links.py</code>.
+
+<br/><br/>
+
+<b>The B2B path forward:</b> luxury hotel concierge desks (Aman, 1 Hotels, Faena) pay for white-labeled access. Hotels have direct restaurant relationships and can complete bookings on the guest's behalf through sanctioned channels. We're the intelligence layer.
 </div>""",
         unsafe_allow_html=True,
     )
@@ -919,22 +928,25 @@ if DEMO_MODE:
                     unsafe_allow_html=True,
                 )
                 if st.button(f"▶ Replay slot opening", key=fid, use_container_width=True):
-                    with st.spinner(f"Ranker → auto-booker → notifier…"):
+                    with st.spinner(f"Ranker → deep-link → notifier…"):
                         r = api_post(f"/api/demo/replay/{fid}", {}, user_id=USER_ID)
                     if "sent" in r:
                         sent = r["sent"]
-                        booked = r.get("auto_booked", [])
-                        if sent and booked:
+                        pending = r.get("pending_user_confirm", [])
+                        if sent and pending:
                             n = sent[0]
-                            b = booked[0]
+                            p = pending[0]
+                            url = p.get("booking_url") or ""
+                            platform = (p.get("booking_platform") or "platform").capitalize()
+                            link_md = f"[Confirm on {platform} →]({url})" if url else "_(no booking URL — see Home)_"
                             st.success(
                                 f"**{n['subject']}**\n\n"
                                 f"{n['body']}\n\n"
-                                f"Confirmation: `{b.get('confirmation_code', '?')}` · "
-                                f"Check the **Home** tab to see it land."
+                                f"{link_md} · email sent to your inbox · "
+                                f"**Home** tab also shows it."
                             )
                         elif sent:
-                            st.info(f"Notified but not booked: {sent[0]['subject']}")
+                            st.info(f"Notified: {sent[0]['subject']}")
                         else:
                             st.info("Notifier ran but emitted nothing (check logs).")
                     else:

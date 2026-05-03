@@ -83,9 +83,14 @@ def _send_console(to: str, subject: str, html: str, text: str) -> EmailResult:
     return EmailResult(True, "console", "logged-only")
 
 
-def _wrap_html(subject: str, body: str, slot_url: str | None = None) -> str:
+def _wrap_html(
+    subject: str,
+    body: str,
+    slot_url: str | None = None,
+    cta_label: str = "Confirm reservation →",
+) -> str:
     cta_html = (
-        f'<a href="{slot_url}" style="display:inline-block;background:#1a1a1a;color:#f5f1e8;padding:12px 22px;border-radius:6px;text-decoration:none;font-family:Inter,sans-serif;font-size:14px;font-weight:500;letter-spacing:0.02em;margin-top:18px">Open Tableau →</a>'
+        f'<a href="{slot_url}" style="display:inline-block;background:#1a1a1a;color:#f5f1e8;padding:14px 28px;border-radius:6px;text-decoration:none;font-family:Inter,sans-serif;font-size:15px;font-weight:600;letter-spacing:0.02em;margin-top:20px">{cta_label}</a>'
         if slot_url
         else ""
     )
@@ -115,12 +120,13 @@ def send_email(
     body: str,
     *,
     slot_url: str | None = None,
+    cta_label: str = "Confirm reservation →",
 ) -> EmailResult:
     """Send an email best-effort. Returns success state + provider used."""
     if not to or "@" not in to:
         return EmailResult(False, "skip", "no recipient email")
 
-    html = _wrap_html(subject, body, slot_url=slot_url)
+    html = _wrap_html(subject, body, slot_url=slot_url, cta_label=cta_label)
 
     for provider_fn in (_send_resend, _send_gmail_smtp):
         res = provider_fn(to, subject, html, body)

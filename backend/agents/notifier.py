@@ -37,8 +37,8 @@ def notifier_node(state: AgentState) -> dict:
                 "restaurant_name",
                 "party_size",
                 "table_type",
-                "confirmation_code",
-                "auto_booked",
+                "booking_platform",
+                "booking_url",
             ]
         }
         slot_summary["day_short"] = day_short  # e.g. "Fri"
@@ -47,7 +47,7 @@ def notifier_node(state: AgentState) -> dict:
         prompt_input = (
             f"Slot: {json.dumps(slot_summary)}\n"
             f"Rationale: {slot.get('rationale', '')}\n"
-            f"Auto-booked: {bool(slot.get('auto_booked'))}"
+            f"Pending user confirm: {bool(slot.get('pending_user_confirm'))}"
         )
         resp = chat(
             model=settings.worker_model,
@@ -76,7 +76,7 @@ def notifier_node(state: AgentState) -> dict:
         except json.JSONDecodeError:
             pass
 
-        # Fire via tool — records to store.
+        # Fire via tool — records to store + sends email.
         call_tool(
             "send_notification",
             {
@@ -85,8 +85,18 @@ def notifier_node(state: AgentState) -> dict:
                 "subject": subject,
                 "body": body,
                 "slot_id": slot["slot_id"],
+                "booking_url": slot.get("booking_url"),
+                "booking_platform": slot.get("booking_platform"),
             },
         )
-        sent.append({"slot_id": slot["slot_id"], "subject": subject, "body": body})
+        sent.append(
+            {
+                "slot_id": slot["slot_id"],
+                "subject": subject,
+                "body": body,
+                "booking_url": slot.get("booking_url"),
+                "booking_platform": slot.get("booking_platform"),
+            }
+        )
 
     return {"scratchpad": {"notifications_sent": sent}}

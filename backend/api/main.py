@@ -270,14 +270,24 @@ def demo_replay(fixture_id: str, user_id: str = "demo-user") -> dict:
         ],
     }
 
-    # Run the post-scout chain: rank → auto-book → notify.
+    # Run the post-scout chain: rank → generate-deep-link → notify.
     state.update(ranker_node(state))
     state.update(auto_booker_node(state))
     notif = notifier_node(state)
     return {
         "sent": notif.get("scratchpad", {}).get("notifications_sent", []),
-        "auto_booked": [
-            s for s in state.get("pending_slots", []) if s.get("auto_booked")
+        "pending_user_confirm": [
+            {
+                "restaurant_id": s.get("restaurant_id"),
+                "restaurant_name": s.get("restaurant_name"),
+                "datetime": s.get("datetime"),
+                "party_size": s.get("party_size"),
+                "table_type": s.get("table_type"),
+                "booking_url": s.get("booking_url"),
+                "booking_platform": s.get("booking_platform"),
+                "booking_note": s.get("booking_note"),
+            }
+            for s in state.get("pending_slots", []) if s.get("pending_user_confirm")
         ],
     }
 
