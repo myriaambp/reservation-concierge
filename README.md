@@ -2,6 +2,8 @@
 
 > *The Bloomberg Terminal for the 600 restaurants where access* is *the product.*
 
+**By [Myriam Bengoechea Pardo](https://github.com/myriaambp) (`mb5500`) and Blanca Valera Caballero (`bv2358`)** — IEORE4576 Capstone, Columbia Spring 2026.
+
 A multi-agent system that monitors hard-to-book NYC restaurants on your behalf, explains *why* a slot fits when it opens, and books with one tap.
 
 - **Live demo:** [concierge-web-eheg65qzwa-uc.a.run.app](https://concierge-web-eheg65qzwa-uc.a.run.app) (API: [concierge-api-…](https://concierge-api-eheg65qzwa-uc.a.run.app))
