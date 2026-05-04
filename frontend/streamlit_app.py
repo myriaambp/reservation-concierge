@@ -902,8 +902,16 @@ if DEMO_MODE:
     with tabs[3]:
         st.markdown(
             '<div class="section-head">Demo Mode</div>'
-            '<div class="section-sub">Two flows. <b>Replay slot</b> runs the full agent pipeline (Ranker → Auto-Booker → Notifier) and emails you a Resy deep-link. <b>Auto-book on Resy</b> opens a real Chromium window and watches the agent navigate Resy live — all the way up to the submit gate. Use the second one on stage; it&rsquo;s the wow factor.</div>',
+            '<div class="section-sub">Two ways to demo: <b>Replay slot</b> sends an email with a deep link. <b>Auto-book on Resy</b> drives a real Chromium browser through the full booking flow and returns screenshots + a confirmation code.</div>',
             unsafe_allow_html=True,
+        )
+
+        st.info(
+            "🖥️ **Headed browser is local-only.** When you run this on your laptop "
+            "with `BROWSER_HEADLESS=false`, the Chromium window pops up on your "
+            "screen and you watch the agent click through live. On this deployed "
+            "version (Cloud Run), the agent runs headless server-side and returns "
+            "the screenshots inline below — Cloud Run has no display."
         )
 
         st.markdown('<h3>Trigger a slot opening</h3>', unsafe_allow_html=True)
@@ -967,16 +975,22 @@ if DEMO_MODE:
                         st.error(r)
 
                 if auto_book:
-                    with st.spinner("Opening Chrome and driving Resy live…"):
+                    with st.spinner("Agent navigating TableTime headlessly…"):
                         r = api_post(f"/api/demo/auto-book/{fid}", {}, user_id=USER_ID)
                     if r.get("ok"):
+                        code = r.get("confirmation_code") or "—"
+                        rest_name = r.get("restaurant_name", "")
+                        confirmation_url = r.get("confirmation_url")
                         st.success(
-                            f"**Agent walked Resy** for {r.get('restaurant_name', '')} "
-                            f"(target time: {r.get('target_time', '?')}, "
-                            f"clicked: {r.get('clicked_time', False)})"
+                            f"**Booked: {rest_name}** · Confirmation `{code}`"
                         )
+                        if confirmation_url:
+                            st.markdown(
+                                f"[↗ View booking on TableTime]({confirmation_url})",
+                                unsafe_allow_html=True,
+                            )
                         # Show the steps
-                        with st.expander("Agent steps", expanded=False):
+                        with st.expander("Agent steps (server-side)", expanded=False):
                             for step in r.get("steps", []):
                                 st.write(f"· {step}")
                         # Show the screenshots — prefer absolute URLs (deployed
